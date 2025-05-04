@@ -7,7 +7,7 @@
 A plugin for Jellyfin that enables secure, expiring, signed video stream URLs for use with [DeoVR](https://deovr.com/) and other clients needing quick access to individual media files without exposing your Jellyfin credentials.
 
 ## Features
-
+- **UI Changes:** adds a Play in DeoVR button
 - **Secure signed links:** Temporary, HMAC-signed links for proxying video streams.
 - **Expiry enforcement:** Links are only valid for a short time window.
 - **Chunked proxy streaming:** Efficient forwarding without direct Jellyfin API exposure.
@@ -80,10 +80,10 @@ See [plugin source comments](./DeoVrDeeplinkController.cs) and [security notes](
 ---
 
 ## Credits
-
+- This plugin was inspired by a lack of a proper VR player that supports Jellyfin
 - [Jellyfin Media Server](https://jellyfin.org/)
 - [DeoVR](https://deovr.com/)
-- This plugin was inspired by a lack of a proper VR player that supports Jellyfin
+- [InPlayerEpisodePreview (Heavily inspired the way the UI is edited)](https://github.com/Namo2/InPlayerEpisodePreview)
 ---
 
 **Happy streaming!**
