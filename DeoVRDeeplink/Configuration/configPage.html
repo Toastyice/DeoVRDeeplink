@@ -1,0 +1,67 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>DeoVR Deeplink</title>
+</head>
+<body>
+<div id="DeoVRDeeplinkConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="DeoVRDeeplinkConfigForm">
+                <!-- DeoVR Configuration Fields -->
+                <div class="verticalSection">
+                    <h2 class="sectionTitle">DeoVR Configuration</h2>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ApiKey">Jellyfin API Key</label>
+                        <input id="ApiKey" name="ApiKey" type="text" is="emby-input" required />
+                        <div class="fieldDescription">Your Jellyfin key</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ProxySecret">Proxy Signing Secret</label>
+                        <input id="ProxySecret" name="ProxySecret" type="text" is="emby-input" required />
+                        <div class="fieldDescription">Do not share. Used for signing video proxy links.</div>
+                    </div>
+                </div>
+
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                        <span>Save</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script type="text/javascript">
+        var DeoVRDeeplinkConfig = {
+            pluginUniqueId: 'e7bea589-e339-490c-8738-596e42b9042e'
+        };
+
+        document.querySelector('#DeoVRDeeplinkConfigPage')
+            .addEventListener('pageshow', function() {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
+                    document.querySelector('#ApiKey').value = config.ApiKey || '';
+                    document.querySelector('#ProxySecret').value = config.ProxySecret || '';
+                    Dashboard.hideLoadingMsg();
+                });
+            });
+
+        document.querySelector('#DeoVRDeeplinkConfigForm')
+            .addEventListener('submit', function(e) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
+                    config.ApiKey = document.querySelector('#ApiKey').value;
+                    config.ProxySecret = document.querySelector('#ProxySecret').value;
+                    ApiClient.updatePluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId, config).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    });
+                });
+
+                e.preventDefault();
+                return false;
+            });
+    </script>
+</div>
+</body>
+</html>

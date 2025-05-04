@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
+        <PackageReference Include="Jellyfin.Model" Version="10.10.7" />
+        <PackageReference Include="Jellyfin.Common" Version="10.10.7" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Remove="Configuration\configPage.html" />
+        <EmbeddedResource Include="Configuration\configPage.html" />
+        <None Remove="Web\DeoVRClient.js" />
+        <EmbeddedResource Include="Web\DeoVRClient.js" />
+        <None Remove="Web\Icon.png" />
+        <EmbeddedResource Include="Web\Icon.png" />
+    </ItemGroup>
+</Project>
