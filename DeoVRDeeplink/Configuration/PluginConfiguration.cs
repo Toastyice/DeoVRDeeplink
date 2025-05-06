@@ -1,6 +1,53 @@
 ﻿namespace DeoVRDeeplink.Configuration;
 
 using MediaBrowser.Model.Plugins;
+using System;
+using System.Text.Json.Serialization;
+
+/// <summary>
+/// Projection type for VR content.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ProjectionType
+{
+    /// <summary>
+    /// No forced projection.
+    /// </summary>
+    None = 0,
+
+    /// <summary>
+    /// 180-degree projection.
+    /// </summary>
+    Projection180 = 1,
+
+    /// <summary>
+    /// 360-degree projection.
+    /// </summary>
+    Projection360 = 2
+}
+
+/// <summary>
+/// Stereo mode for VR content.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum StereoMode
+{
+    /// <summary>
+    /// No forced stereo mode.
+    /// </summary>
+    None = 0,
+    
+    /// <summary>
+    /// Side-by-side stereo format.
+    /// </summary>
+    SideBySide = 1,
+
+    /// <summary>
+    /// Top-bottom stereo format.
+    /// </summary>
+    TopBottom = 2
+}
+
 /// <summary>
 /// Plugin configuration.
 /// </summary>
@@ -13,16 +60,28 @@ public class PluginConfiguration : BasePluginConfiguration
     public PluginConfiguration()
     {
         ApiKey = "Some api key";
-        ProxySecret = System.Guid.NewGuid().ToString("N");
+        ProxySecret = Guid.NewGuid().ToString("N");
+        FallbackProjection = ProjectionType.None;
+        FallbackStereoMode = StereoMode.None;
     }
 
     /// <summary>
     /// Gets or sets the API Key
     /// </summary>
     public string ApiKey { get; set; }
-        
+
     /// <summary>
     /// Secret for signing proxy tokens
     /// </summary>
     public string ProxySecret { get; set; }
+
+    /// <summary>
+    /// Fallback projection type (180/360/None)
+    /// </summary>
+    public ProjectionType FallbackProjection { get; set; }
+
+    /// <summary>
+    /// Fallback stereo mode (SBS/TB/None)
+    /// </summary>
+    public StereoMode FallbackStereoMode { get; set; }
 }

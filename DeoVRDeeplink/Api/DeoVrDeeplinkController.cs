@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
+using DeoVRDeeplink.Configuration;
 
 [ApiController]
 [Route("DeoVRDeeplink")]
@@ -144,7 +145,7 @@ public class DeoVrDeeplinkController : ControllerBase
 
         var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / 10_000_000);
 
-        var (stereoMode, screenType) = Get3DType(video);
+        var (stereoMode, screenType) = Get3DType(video, DeoVrDeeplinkPlugin.Instance!.Configuration);
 
         var baseUrl = GetServerUrl();
 
@@ -211,15 +212,31 @@ public class DeoVrDeeplinkController : ControllerBase
     }
 
     // Returns VR display type
-    private static (string StereoMode, string ScreenType) Get3DType(Video video) =>
-        video.Video3DFormat switch
+
+    private static (string StereoMode, string ScreenType) Get3DType(Video video, PluginConfiguration config)
+    {
+        return video.Video3DFormat switch
         {
-            Video3DFormat.FullSideBySide => ("sbs", "sphere"),
+            Video3DFormat.FullSideBySide   => ("sbs", "sphere"),
             Video3DFormat.FullTopAndBottom => ("tb", "sphere"),
-            Video3DFormat.HalfSideBySide => ("sbs", "dome"),
+            Video3DFormat.HalfSideBySide   => ("sbs", "dome"),
             Video3DFormat.HalfTopAndBottom => ("tb", "dome"),
-            _ => ("sbs", "dome"),
+            _ => (
+                config.FallbackStereoMode switch
+                {
+                    StereoMode.SideBySide => "sbs",
+                    StereoMode.TopBottom  => "tb",
+                    _ => "off"
+                },
+                config.FallbackProjection switch
+                {
+                    ProjectionType.Projection180 => "dome",
+                    ProjectionType.Projection360 => "sphere",
+                    _ => "flat"
+                }
+            )
         };
+    }
 
     // Gets accessible server URL from current context
     private string GetServerUrl()
@@ -311,7 +328,6 @@ public class DeoVrDeeplinkController : ControllerBase
     }
     private string GetJellyfinInternalBaseUrl()
     {
-        // Most setups will use the first HTTP endpoint.
         var options = _config.GetNetworkConfiguration();
         var httpPort = options.InternalHttpPort;
         var httpsPort = options.InternalHttpsPort;

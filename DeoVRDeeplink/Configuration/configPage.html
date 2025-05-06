@@ -22,6 +22,26 @@
                         <input id="ProxySecret" name="ProxySecret" type="text" is="emby-input" required />
                         <div class="fieldDescription">Do not share. Used for signing video proxy links.</div>
                     </div>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="FallbackProjection">Fallback Projection Type</label>
+                        <select is="emby-select" id="FallbackProjection" name="FallbackProjection" class="emby-select-withcolor emby-select">
+                            <option value="None">None</option>
+                            <option value="Projection180">180-degree</option>
+                            <option value="Projection360">360-degree</option>
+                        </select>
+                        <div class="fieldDescription">Fallback specific projection type for VR content</div>
+                    </div>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="FallbackStereoMode">Fallback Stereo Mode</label>
+                        <select is="emby-select" id="FallbackStereoMode" name="FallbackStereoMode" class="emby-select-withcolor emby-select">
+                            <option value="None">None</option>
+                            <option value="SideBySide">Side by Side</option>
+                            <option value="TopBottom">Top Bottom</option>
+                        </select>
+                        <div class="fieldDescription">Fallback specific stereo mode for VR content</div>
+                    </div>
                 </div>
 
                 <div>
@@ -43,22 +63,42 @@
                 ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
                     document.querySelector('#ApiKey').value = config.ApiKey || '';
                     document.querySelector('#ProxySecret').value = config.ProxySecret || '';
+
+                    // Use the enum string values instead of numeric values
+                    var projectionValue = config.FallbackProjection || 'None';
+                    var stereoValue = config.FallbackStereoMode || 'None';
+
+                    document.querySelector('#FallbackProjection').value = projectionValue;
+                    document.querySelector('#FallbackStereoMode').value = stereoValue;
+
+                    console.log("Loaded config:", config);
+                    console.log("Set projection to:", projectionValue);
+                    console.log("Set stereo mode to:", stereoValue);
+
                     Dashboard.hideLoadingMsg();
                 });
             });
 
         document.querySelector('#DeoVRDeeplinkConfigForm')
             .addEventListener('submit', function(e) {
+                e.preventDefault();
+
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
                     config.ApiKey = document.querySelector('#ApiKey').value;
                     config.ProxySecret = document.querySelector('#ProxySecret').value;
+
+                    // Use string enum values directly
+                    config.FallbackProjection = document.querySelector('#FallbackProjection').value;
+                    config.FallbackStereoMode = document.querySelector('#FallbackStereoMode').value;
+
+                    console.log("Saving config:", config);
+
                     ApiClient.updatePluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId, config).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
                     });
                 });
 
-                e.preventDefault();
                 return false;
             });
     </script>
