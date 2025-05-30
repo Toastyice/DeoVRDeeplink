@@ -1,7 +1,6 @@
 # DeoVR Deeplink Proxy Plugin for Jellyfin
 
 > [!CAUTION]
-> Early development Use at your own risk!  
 > All movies are exposed UNAUTHENTICATED from DeoVRDeeplink/json/videoID/response.json
 
 A plugin for Jellyfin that enables secure, expiring, signed video stream URLs for use with [DeoVR](https://deovr.com/) and other clients needing quick access to individual media files without exposing your Jellyfin credentials.
