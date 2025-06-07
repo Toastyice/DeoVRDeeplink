@@ -62,11 +62,7 @@ public class PluginConfiguration : BasePluginConfiguration
         ProxySecret = Guid.NewGuid().ToString("N");
         FallbackProjection = ProjectionType.Projection180;
         FallbackStereoMode = StereoMode.SideBySide;
-        AllowedIpRanges =
-        [
-            "127.0.0.1/32", // localhost
-            "::1/128" // IPv6 localhost
-        ];
+        AllowedIpRanges = [];
         EnableIpRestriction = false;
     }
 
