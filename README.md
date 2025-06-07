@@ -27,19 +27,12 @@ A plugin for Jellyfin that enables secure, expiring, signed video stream URLs fo
 - .NET 8.0 SDK or later (for building)
 - DeoVR for testing client integration (optional)
 
-### Installation
+## Installation ##
 
-1. **Build the plugin:**
-
-    ```bash
-    dotnet build -c Release
-    ```
-
-2. **Copy the plugin DLL**  
-    Place the resulting `.dll` (and dependencies) in your Jellyfin plugins directory (typically `Jellyfin/Server/plugins`).
-
-3. **Restart Jellyfin.**  
-    The plugin will be loaded automatically.
+### Jellyfin Web Client (Server) ###
+1. Add the manifest `https://raw.githubusercontent.com/toastyice/DeoVRDeeplink/master/manifest.json` as a Jellyfin plugin repository to your server.
+2. Install the plugin `DeoVRDeeplink` from the repository.
+3. Restart the Jellyfin server.
 
 ### Configuration
 

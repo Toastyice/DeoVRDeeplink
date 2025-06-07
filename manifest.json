@@ -1,0 +1,20 @@
+[
+    {
+        "guid": "e7bea589-e339-490c-8738-596e42b9042e",
+        "name": "DeoVRDeeplink",
+        "overview": "Adds a Play in DeoVR button.",
+        "description": "Adds a Play in DeoVR button.",
+        "owner": "toastyice",
+        "category": "General",
+        "versions": [
+            {
+                "version": "1.0.0.0",
+                "changelog": "Initial release",
+                "targetAbi": "10.10.7.0",
+                "sourceUrl": "https://github.com/Toastyice/DeoVRDeeplink/releases/download/v1.0.0/DeoVRDeeplink-v1.0.0.zip",
+                "checksum": "701c52141867eda77289153a49d9e4bf",
+                "timestamp": "2025-06-07T19:33:00Z"
+            }
+        ]
+    }
+]
