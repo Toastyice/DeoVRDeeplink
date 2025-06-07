@@ -126,4 +126,3 @@ public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHas
     [GeneratedRegex("<script plugin=\"DeoVRDeeplink\".*?></script>", RegexOptions.IgnoreCase)]
     private static partial Regex GetDeovrDeeplinkScriptRegex();
 }
-

@@ -5,7 +5,7 @@
     <title>DeoVR Deeplink</title>
 </head>
 <body>
-<div id="DeoVRDeeplinkConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+<div id="DeoVRDeeplinkConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox,emby-collapse,emby-textarea">
     <div data-role="content">
         <div class="content-primary">
             <form id="DeoVRDeeplinkConfigForm">
@@ -44,6 +44,34 @@
                     </div>
                 </div>
 
+                <!-- IP Restriction Settings -->
+                <div class="verticalSection">
+                    <h2 class="sectionTitle">IP Restriction</h2>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableIpRestriction" name="EnableIpRestriction" type="checkbox" is="emby-checkbox" />
+                            <span>Enable IP restriction</span>
+                        </label>
+                        <div class="fieldDescription">Restrict access to DeoVR endpoints based on IP addresses</div>
+                    </div>
+
+                    <div id="ipRangesContainer" class="inputContainer hide">
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="AllowedIpRanges">Allowed IP Ranges</label>
+                            <div class="fieldDescription" style="margin-bottom: 0.5em;">
+                                Enter one CIDR IP range per line:<br>
+                                • For specific IPs: <code>192.168.1.10/32</code><br>
+                                • For subnets: <code>192.168.1.0/24</code><br>
+                                • For local network: <code>10.0.0.0/8</code> or <code>172.16.0.0/12</code><br>
+                                • For localhost: <code>127.0.0.1/32</code> and <code>::1/128</code>
+                            </div>
+                            <textarea id="AllowedIpRanges" name="AllowedIpRanges" is="emby-textarea"
+                                      class="emby-textarea" rows="4" style="font-family: monospace; resize: vertical;"></textarea>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <button is="emby-button" type="submit" class="raised button-submit block emby-button">
                         <span>Save</span>
@@ -71,11 +99,24 @@
                     document.querySelector('#FallbackProjection').value = projectionValue;
                     document.querySelector('#FallbackStereoMode').value = stereoValue;
 
-                    console.log("Loaded config:", config);
-                    console.log("Set projection to:", projectionValue);
-                    console.log("Set stereo mode to:", stereoValue);
+                    // Set IP restriction options
+                    var enableIpRestriction = config.EnableIpRestriction || false;
+                    document.querySelector('#EnableIpRestriction').checked = enableIpRestriction;
 
+                    // Show/hide IP ranges container based on checkbox
+                    document.querySelector('#ipRangesContainer').classList.toggle('hide', !enableIpRestriction);
+
+                    // Join the IP ranges with newlines for display in textarea
+                    var ipRanges = (config.AllowedIpRanges || []).join('\n');
+                    document.querySelector('#AllowedIpRanges').value = ipRanges;
+
+                    console.log("Loaded config:", config);
                     Dashboard.hideLoadingMsg();
+                });
+
+                // Set up event listener for the checkbox
+                document.querySelector('#EnableIpRestriction').addEventListener('change', function(e) {
+                    document.querySelector('#ipRangesContainer').classList.toggle('hide', !e.target.checked);
                 });
             });
 
@@ -91,6 +132,16 @@
                     // Use string enum values directly
                     config.FallbackProjection = document.querySelector('#FallbackProjection').value;
                     config.FallbackStereoMode = document.querySelector('#FallbackStereoMode').value;
+
+                    // Get IP restriction settings
+                    config.EnableIpRestriction = document.querySelector('#EnableIpRestriction').checked;
+
+                    // Split the textarea content by newlines and filter empty lines
+                    var ipRangesText = document.querySelector('#AllowedIpRanges').value;
+                    config.AllowedIpRanges = ipRangesText
+                        .split('\n')
+                        .map(function(line) { return line.trim(); })
+                        .filter(function(line) { return line.length > 0; });
 
                     console.log("Saving config:", config);
 

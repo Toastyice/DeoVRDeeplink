@@ -1,13 +1,12 @@
 ﻿namespace DeoVRDeeplink.Api;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.Text;
+using Configuration;
+using Utilities;
+using MediaBrowser.Common.Net;
+using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
@@ -17,24 +16,22 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using MediaBrowser.Common.Net;
-using MediaBrowser.Controller.Configuration;
-using DeoVRDeeplink.Configuration;
 
 [ApiController]
 [Route("DeoVRDeeplink")]
 public class DeoVrDeeplinkController : ControllerBase
 {
-    private readonly ILogger<DeoVrDeeplinkController> _logger;
-    private readonly ILibraryManager _libraryManager;
-    private readonly IMediaSourceManager _mediaSourceManager;
-    private readonly IMediaEncoder _mediaEncoder;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly Assembly _assembly = Assembly.GetExecutingAssembly();
-    private readonly IServerConfigurationManager _config;
 
     private readonly string _clientScriptResourcePath =
         $"{DeoVrDeeplinkPlugin.Instance?.GetType().Namespace}.Web.DeoVRClient.js";
+
+    private readonly IServerConfigurationManager _config;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ILibraryManager _libraryManager;
+    private readonly ILogger<DeoVrDeeplinkController> _logger;
+    private readonly IMediaEncoder _mediaEncoder;
+    private readonly IMediaSourceManager _mediaSourceManager;
 
     public DeoVrDeeplinkController(
         ILogger<DeoVrDeeplinkController> logger,
@@ -97,12 +94,36 @@ public class DeoVrDeeplinkController : ControllerBase
     }
 
     /// <summary>
-    /// Returns DeoVR compatible JSON for a movie.
+    ///     Returns DeoVR compatible JSON for a movie.
     /// </summary>
     [HttpGet("json/{movieId}/response.json")]
     [Produces("application/json")]
     public async Task<IActionResult> GetDeoVrResponse(string movieId)
     {
+        // Check if IP restriction is enabled
+        if (DeoVrDeeplinkPlugin.Instance!.Configuration.EnableIpRestriction)
+        {
+            // Get client IP address
+            var clientIp = HttpContext.Connection.RemoteIpAddress;
+
+            if (clientIp == null)
+            {
+                _logger.LogWarning("Unable to determine client IP address");
+                return Forbid();
+            }
+
+            // Check if the client IP is in any of the allowed ranges
+            var isAllowed =
+                DeoVrDeeplinkPlugin.Instance.Configuration.AllowedIpRanges.Any(cidrRange =>
+                    clientIp.IsInCidrRange(cidrRange));
+
+            if (!isAllowed)
+            {
+                _logger.LogWarning("Unauthorized access attempt from IP: {IpAddress}", clientIp);
+                return Forbid();
+            }
+        }
+
         try
         {
             var response = await BuildVideoResponse(movieId);
@@ -116,13 +137,12 @@ public class DeoVrDeeplinkController : ControllerBase
     }
 
     /// <summary>
-    /// Helper to sign a proxy url token
+    ///     Helper to sign a proxy url token
     /// </summary>
     private static string SignUrl(string data, string secret)
     {
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-        // Hex string!
         return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
     }
 
@@ -149,7 +169,6 @@ public class DeoVrDeeplinkController : ControllerBase
 
         var baseUrl = GetServerUrl();
 
-        // NEW: Proxy link with short-lived token
         var proxySecret = DeoVrDeeplinkPlugin.Instance?.Configuration.ProxySecret ?? "default-secret";
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
         var tokenData = $"{movieId}:{expiry}";
@@ -189,7 +208,7 @@ public class DeoVrDeeplinkController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieves chapter timestamps, in seconds, for the item.
+    ///     Retrieves chapter timestamps, in seconds, for the item.
     /// </summary>
     private async Task<List<DeoVrTimestamps>> GetDeoVrTimestampsAsync(BaseItem item)
     {
@@ -199,7 +218,7 @@ public class DeoVrDeeplinkController : ControllerBase
             {
                 MediaSource = source,
                 MediaType = DlnaProfileType.Video,
-                ExtractChapters = true,
+                ExtractChapters = true
             },
             CancellationToken.None);
 
@@ -217,15 +236,15 @@ public class DeoVrDeeplinkController : ControllerBase
     {
         return video.Video3DFormat switch
         {
-            Video3DFormat.FullSideBySide   => ("sbs", "sphere"),
+            Video3DFormat.FullSideBySide => ("sbs", "sphere"),
             Video3DFormat.FullTopAndBottom => ("tb", "sphere"),
-            Video3DFormat.HalfSideBySide   => ("sbs", "dome"),
+            Video3DFormat.HalfSideBySide => ("sbs", "dome"),
             Video3DFormat.HalfTopAndBottom => ("tb", "dome"),
             _ => (
                 config.FallbackStereoMode switch
                 {
                     StereoMode.SideBySide => "sbs",
-                    StereoMode.TopBottom  => "tb",
+                    StereoMode.TopBottom => "tb",
                     _ => "off"
                 },
                 config.FallbackProjection switch
@@ -244,16 +263,16 @@ public class DeoVrDeeplinkController : ControllerBase
         var req = _httpContextAccessor.HttpContext?.Request;
         return req == null ? "" : $"{req.Scheme}://{req.Host}{req.PathBase}";
     }
-        
+
     /// <summary>
-    /// Securely proxies video streams with signed, expiring tokens.
+    ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
     [HttpGet("proxy/{movieId}/{expiry}/{signature}/stream.mp4")]
     [AllowAnonymous]
     public async Task ProxyStream(string movieId, long expiry, string signature)
     {
         // Validate movieId format
-        if (!Guid.TryParse(movieId, out var itemGuid))
+        if (!Guid.TryParse(movieId, out _))
         {
             Response.StatusCode = StatusCodes.Status400BadRequest;
             await Response.Body.FlushAsync();
@@ -290,18 +309,15 @@ public class DeoVrDeeplinkController : ControllerBase
         var jellyfinUrl =
             $"{jellyfinInternalBaseUrl}/Videos/{movieId}/stream.mp4?Static=true&mediaSourceId={movieId}&deviceId=DeoVRDeeplink_v1";
 
-        // Use a static/shared HttpClient for best performance
         var httpClient = StaticHttpClient.Instance;
 
-        var forwardRequest = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, jellyfinUrl);
+        var forwardRequest = new HttpRequestMessage(HttpMethod.Get, jellyfinUrl);
         forwardRequest.Headers.Add("X-Emby-Token", jellyfinApiKey);
 
         // Forward the Range header for seeking
         if (Request.Headers.TryGetValue("Range", out var rangeValues))
-        {
             foreach (var value in rangeValues)
                 forwardRequest.Headers.TryAddWithoutValidation("Range", value);
-        }
 
         using var resp = await httpClient.SendAsync(forwardRequest, HttpCompletionOption.ResponseHeadersRead);
 
@@ -326,6 +342,7 @@ public class DeoVrDeeplinkController : ControllerBase
             await Response.Body.FlushAsync();
         }
     }
+
     private string GetJellyfinInternalBaseUrl()
     {
         var options = _config.GetNetworkConfiguration();
@@ -341,5 +358,5 @@ public class DeoVrDeeplinkController : ControllerBase
 
 public class StaticHttpClient
 {
-    public static readonly HttpClient Instance = new HttpClient();
+    public static readonly HttpClient Instance = new();
 }
