@@ -160,7 +160,7 @@ public class DeoVrDeeplinkController : ControllerBase
         var response = new DeoVrVideoResponse
         {
             Id = itemId.GetHashCode(),
-            Title = video.Name?.Split(' ')[0] ?? "Unknown",
+            Title = video.Name ?? "Unknown",
             Is3D = true,
             VideoLength = runtimeSeconds,
             ScreenType = screenType,
