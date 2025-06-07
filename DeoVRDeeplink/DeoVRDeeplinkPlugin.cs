@@ -15,7 +15,6 @@ public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHas
     private readonly IServerConfigurationManager _configurationManager;
 
     public static DeoVrDeeplinkPlugin? Instance { get; private set; }
-
     public override string Name => "DeoVRDeeplink";
     public override Guid Id => Guid.Parse("e7bea589-e339-490c-8738-596e42b9042e");
     public override string Description => "Adds deeplink support for DeoVR player";
@@ -126,4 +125,3 @@ public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHas
     [GeneratedRegex("<script plugin=\"DeoVRDeeplink\".*?></script>", RegexOptions.IgnoreCase)]
     private static partial Regex GetDeovrDeeplinkScriptRegex();
 }
-
