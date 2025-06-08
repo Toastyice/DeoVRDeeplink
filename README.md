@@ -38,7 +38,6 @@ A plugin for Jellyfin that enables secure, expiring, signed video stream URLs fo
 
 - In the Jellyfin dashboard, configure:
   - **Proxy Secret:** _(A strong random string used for signing proxy URLs)_.
-  - **Jellyfin API Key:** _(Provide a Jellyfin API Key)_.
   - **Fallback Projection Type:** _(Force a projection type if the film's metadata does not indicate the mode.)_.
   - **Fallback Stereo Mode:** _(Force a stereo mode if the film's metadata doesn't indicate it)_.
   - **IP Restriction:** _(Configure IP restrictions for the json and proxy endpoints)_.
