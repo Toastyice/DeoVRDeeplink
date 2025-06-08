@@ -19,35 +19,25 @@ using Microsoft.Extensions.Logging;
 
 [ApiController]
 [Route("DeoVRDeeplink")]
-public class DeoVrDeeplinkController : ControllerBase
+public class DeoVrDeeplinkController(
+    ILogger<DeoVrDeeplinkController> logger,
+    ILibraryManager libraryManager,
+    IMediaSourceManager mediaSourceManager,
+    IMediaEncoder mediaEncoder,
+    IHttpContextAccessor httpContextAccessor,
+    IServerConfigurationManager config) : ControllerBase
 {
     private readonly Assembly _assembly = Assembly.GetExecutingAssembly();
 
     private readonly string _clientScriptResourcePath =
         $"{DeoVrDeeplinkPlugin.Instance?.GetType().Namespace}.Web.DeoVRClient.js";
 
-    private readonly IServerConfigurationManager _config;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly ILibraryManager _libraryManager;
-    private readonly ILogger<DeoVrDeeplinkController> _logger;
-    private readonly IMediaEncoder _mediaEncoder;
-    private readonly IMediaSourceManager _mediaSourceManager;
-
-    public DeoVrDeeplinkController(
-        ILogger<DeoVrDeeplinkController> logger,
-        ILibraryManager libraryManager,
-        IMediaSourceManager mediaSourceManager,
-        IMediaEncoder mediaEncoder,
-        IHttpContextAccessor httpContextAccessor,
-        IServerConfigurationManager config)
-    {
-        _logger = logger;
-        _libraryManager = libraryManager;
-        _mediaSourceManager = mediaSourceManager;
-        _mediaEncoder = mediaEncoder;
-        _httpContextAccessor = httpContextAccessor;
-        _config = config;
-    }
+    private readonly IServerConfigurationManager _config = config;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly ILibraryManager _libraryManager = libraryManager;
+    private readonly ILogger<DeoVrDeeplinkController> _logger = logger;
+    private readonly IMediaEncoder _mediaEncoder = mediaEncoder;
+    private readonly IMediaSourceManager _mediaSourceManager = mediaSourceManager;
 
     /// <summary>Serves embedded client JavaScript.</summary>
     [HttpGet("ClientScript")]
@@ -114,8 +104,7 @@ public class DeoVrDeeplinkController : ControllerBase
 
             // Check if the client IP is in any of the allowed ranges
             var isAllowed =
-                DeoVrDeeplinkPlugin.Instance.Configuration.AllowedIpRanges.Any(cidrRange =>
-                    clientIp.IsInCidrRange(cidrRange));
+                DeoVrDeeplinkPlugin.Instance.Configuration.AllowedIpRanges.Any(clientIp.IsInCidrRange);
 
             if (!isAllowed)
             {
@@ -173,7 +162,6 @@ public class DeoVrDeeplinkController : ControllerBase
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
         var tokenData = $"{movieId}:{expiry}";
         var sig = SignUrl(tokenData, proxySecret);
-        // /DeoVRDeeplink/proxy/{movieId}/{expiry}/{sig}/stream.mp4
         var streamUrl = $"{baseUrl}/DeoVRDeeplink/proxy/{movieId}/{expiry}/{sig}/stream.mp4";
 
         var response = new DeoVrVideoResponse
@@ -257,13 +245,6 @@ public class DeoVrDeeplinkController : ControllerBase
         };
     }
 
-    // Gets accessible server URL from current context
-    private string GetServerUrl()
-    {
-        var req = _httpContextAccessor.HttpContext?.Request;
-        return req == null ? "" : $"{req.Scheme}://{req.Host}{req.PathBase}";
-    }
-
     /// <summary>
     ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
@@ -304,15 +285,13 @@ public class DeoVrDeeplinkController : ControllerBase
         }
 
         // Prepare Jellyfin endpoint (should be local for performance)
-        var jellyfinApiKey = DeoVrDeeplinkPlugin.Instance?.Configuration.ApiKey;
-        var jellyfinInternalBaseUrl = GetJellyfinInternalBaseUrl();
+        var jellyfinInternalBaseUrl = GetInternalBaseUrl();
         var jellyfinUrl =
             $"{jellyfinInternalBaseUrl}/Videos/{movieId}/stream.mp4?Static=true&mediaSourceId={movieId}&deviceId=DeoVRDeeplink_v1";
 
         var httpClient = StaticHttpClient.Instance;
 
         var forwardRequest = new HttpRequestMessage(HttpMethod.Get, jellyfinUrl);
-        forwardRequest.Headers.Add("X-Emby-Token", jellyfinApiKey);
 
         // Forward the Range header for seeking
         if (Request.Headers.TryGetValue("Range", out var rangeValues))
@@ -343,7 +322,14 @@ public class DeoVrDeeplinkController : ControllerBase
         }
     }
 
-    private string GetJellyfinInternalBaseUrl()
+    // Gets accessible server URL from current context
+    private string GetServerUrl()
+    {
+        var req = _httpContextAccessor.HttpContext?.Request;
+        return req == null ? "" : $"{req.Scheme}://{req.Host}{req.PathBase}";
+    }
+    
+    private string GetInternalBaseUrl()
     {
         var options = _config.GetNetworkConfiguration();
         var httpPort = options.InternalHttpPort;

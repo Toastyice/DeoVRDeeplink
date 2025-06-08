@@ -58,18 +58,12 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public PluginConfiguration()
     {
-        ApiKey = "Some api key";
         ProxySecret = Guid.NewGuid().ToString("N");
         FallbackProjection = ProjectionType.Projection180;
         FallbackStereoMode = StereoMode.SideBySide;
         AllowedIpRanges = [];
         EnableIpRestriction = false;
     }
-
-    /// <summary>
-    ///     Gets or sets the API Key
-    /// </summary>
-    public string ApiKey { get; set; }
 
     /// <summary>
     ///     Secret for signing proxy tokens

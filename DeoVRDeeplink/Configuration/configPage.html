@@ -13,11 +13,6 @@
                 <div class="verticalSection">
                     <h2 class="sectionTitle">DeoVR Configuration</h2>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ApiKey">Jellyfin API Key</label>
-                        <input id="ApiKey" name="ApiKey" type="text" is="emby-input" required />
-                        <div class="fieldDescription">Your Jellyfin key</div>
-                    </div>
-                    <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="ProxySecret">Proxy Signing Secret</label>
                         <input id="ProxySecret" name="ProxySecret" type="text" is="emby-input" required />
                         <div class="fieldDescription">Do not share. Used for signing video proxy links.</div>
@@ -89,7 +84,6 @@
             .addEventListener('pageshow', function() {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
-                    document.querySelector('#ApiKey').value = config.ApiKey || '';
                     document.querySelector('#ProxySecret').value = config.ProxySecret || '';
 
                     // Use the enum string values instead of numeric values
@@ -126,7 +120,6 @@
 
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
-                    config.ApiKey = document.querySelector('#ApiKey').value;
                     config.ProxySecret = document.querySelector('#ProxySecret').value;
 
                     // Use string enum values directly
