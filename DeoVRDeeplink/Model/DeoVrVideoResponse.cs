@@ -1,7 +1,6 @@
-﻿namespace DeoVRDeeplink.Api;
+﻿using System.Text.Json.Serialization;
 
-using System.Text.Json.Serialization;
-using System.Collections.Generic;
+namespace DeoVRDeeplink.Model;
 
 /// <summary>
 /// Represents a response containing video details from DeoVR.

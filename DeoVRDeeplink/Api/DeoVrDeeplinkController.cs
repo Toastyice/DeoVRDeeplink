@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Model;
 
 [ApiController]
 [Route("DeoVRDeeplink")]
@@ -152,7 +153,7 @@ public class DeoVrDeeplinkController(
         var resolution = stream?.Height ?? 2160;
         var codec = stream?.Codec ?? "h264";
 
-        var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / 10_000_000);
+        var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond);
 
         var (stereoMode, screenType) = Get3DType(video, DeoVrDeeplinkPlugin.Instance!.Configuration);
 
@@ -212,7 +213,7 @@ public class DeoVrDeeplinkController(
         return info.Chapters?
             .Select(ch => new DeoVrTimestamps
             {
-                ts = (int)(ch.StartPositionTicks / 10_000_000),
+                ts = (int)(ch.StartPositionTicks / TimeSpan.TicksPerSecond),
                 name = ch.Name
             }).ToList() ?? [];
     }
