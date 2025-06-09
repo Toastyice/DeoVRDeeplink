@@ -172,8 +172,7 @@ public class DeoVrDeeplinkController(
             VideoLength = runtimeSeconds,
             ScreenType = screenType,
             StereoMode = stereoMode,
-            ThumbnailUrl = $"{baseUrl}/Items/{itemId}/Images/Primary",
-            VideoThumbnail = $"{baseUrl}/Items/{itemId}/Images/Primary",
+            ThumbnailUrl = $"{baseUrl}/Items/{itemId}/Images/Backdrop",
             Encodings =
             [
                 new DeoVrEncoding
