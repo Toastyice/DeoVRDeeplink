@@ -11,9 +11,9 @@ using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using Model;
 
-//Include library in /deovr optin
+//Include library in /deovr optin?
 //Link to all movies
-//1. Get the library to work
+//1. Get the library to work done
 //2. Get additional metadata to work
 //3. Trickplay images possible?
 
