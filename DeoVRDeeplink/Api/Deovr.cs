@@ -50,9 +50,9 @@ public class DeoVrController : ControllerBase
         try
         {
             var baseUrl = GetServerUrl();
-            var libraries = GetAllLibraries();
-
-            if (!libraries.Any())
+            var libraries = GetAllLibraries().ToArray();
+            
+            if (libraries.Length == 0)
             {
                 _logger.LogWarning("No libraries found");
                 return Ok(new DeoVrScenesResponse());
@@ -62,9 +62,9 @@ public class DeoVrController : ControllerBase
 
             foreach (var library in libraries)
             {
-                var videos = GetVideosFromLibrary(library);
-            
-                if (!videos.Any())
+                var videos = GetVideosFromLibrary(library).ToArray();
+                
+                if (videos.Length == 0)
                 {
                     _logger.LogDebug("No videos found in library: {LibraryName}", library.Name);
                     continue;
@@ -108,15 +108,6 @@ public class DeoVrController : ControllerBase
         return _libraryManager.GetUserRootFolder()
             .Children
             .OfType<CollectionFolder>();
-    }
-
-    private Folder? GetLibraryByName(string libraryName)
-    {
-        return _libraryManager.RootFolder
-            .Children
-            .OfType<Folder>()
-            .FirstOrDefault(folder => 
-                folder.Name.Equals(libraryName, StringComparison.InvariantCultureIgnoreCase));
     }
 
     private IEnumerable<Video> GetVideosFromLibrary(Folder library)
