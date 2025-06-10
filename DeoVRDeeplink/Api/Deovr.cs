@@ -1,15 +1,14 @@
-﻿namespace DeoVRDeeplink.Api;
-
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
 using Microsoft.AspNetCore.Http;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
-using Model;
+using DeoVRDeeplink.Model;
+
+namespace DeoVRDeeplink.Api;
 
 //Include library in /deovr optin?
 //Link to all movies
@@ -101,84 +100,6 @@ public class DeoVrController : ControllerBase
         {
             _logger.LogError(ex, "Error generating DeoVR scenes JSON");
             return StatusCode(StatusCodes.Status500InternalServerError, "Error generating DeoVR scenes");
-        }
-    }
-    /// <summary>
-    /// Returns scenes from a specific library by name
-    /// </summary>
-    [HttpGet("library/{libraryName}")]
-    [Produces("application/json")]
-    public IActionResult GetScenesFromLibrary(string libraryName)
-    {
-        try
-        {
-            var baseUrl = GetServerUrl();
-            var library = GetLibraryByName(libraryName);
-
-            if (library == null)
-            {
-                _logger.LogWarning("Library not found: {LibraryName}", libraryName);
-                return NotFound($"Library '{libraryName}' not found");
-            }
-
-            var videos = GetVideosFromLibrary(library);
-            
-            var videoList = videos.Select<Video, object>(video => new
-            {
-                title = video.Name,
-                videoLength = GetVideoDuration(video),
-                video_url = $"{baseUrl}/DeoVRDeeplink/json/{video.Id}/response.json",
-                thumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop"
-            }).ToArray();
-
-            var response = new
-            {
-                scenes = new[]
-                {
-                    new
-                    {
-                        name = library.Name,
-                        list = videoList
-                    }
-                }
-            };
-
-            _logger.LogInformation("Generated DeoVR response with {Count} videos from library: {LibraryName}", 
-                videoList.Length, library.Name);
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating DeoVR scenes JSON for library: {LibraryName}", libraryName);
-            return StatusCode(StatusCodes.Status500InternalServerError, 
-                $"Error generating DeoVR scenes for library: {libraryName}");
-        }
-    }
-
-    /// <summary>
-    /// Returns a list of all available libraries
-    /// </summary>
-    [HttpGet("libraries")]
-    [Produces("application/json")]
-    public IActionResult GetLibraries()
-    {
-        try
-        {
-            var libraries = GetAllLibraries().Select(library => new
-            {
-                name = library.Name,
-                id = library.Id,
-                videoCount = GetVideosFromLibrary(library).Count()
-            }).ToArray();
-
-            _logger.LogInformation("Retrieved {Count} libraries", libraries.Length);
-            return Ok(new { libraries });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving libraries");
-            return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving libraries");
         }
     }
 
