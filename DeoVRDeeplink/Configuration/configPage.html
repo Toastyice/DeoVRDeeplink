@@ -67,6 +67,33 @@
                     </div>
                 </div>
 
+                <!-- Timeline Settings -->
+                <div class="verticalSection">
+                    <h2 class="sectionTitle">Timeline Settings</h2>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableTimeline" name="EnableTimeline" type="checkbox" is="emby-checkbox" />
+                            <span>Enable Timeline Images</span>
+                        </label>
+                        <div class="fieldDescription">Generate timeline images for supported libraries</div>
+                    </div>
+
+                    <div id="timelineLibrariesContainer" class="inputContainer hide">
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="TimelineIncludedLibrary">Library Names</label>
+                            <div class="fieldDescription" style="margin-bottom: 0.5em;">
+                                Enter one library name per line:<br>
+                                • Use exact library names as they appear in Jellyfin<br>
+                                • Case-sensitive matching<br>
+                            </div>
+                            <textarea id="TimelineIncludedLibrary" name="TimelineIncludedLibrary" is="emby-textarea"
+                                      class="emby-textarea" rows="4" style="font-family: monospace; resize: vertical;"
+                                      placeholder="Movies&#10;TV Shows&#10;Home Videos"></textarea>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <button is="emby-button" type="submit" class="raised button-submit block emby-button">
                         <span>Save</span>
@@ -104,13 +131,29 @@
                     var ipRanges = (config.AllowedIpRanges || []).join('\n');
                     document.querySelector('#AllowedIpRanges').value = ipRanges;
 
+                    // Set Timeline settings
+                    var hasTimelineLibraries = config.TimelineIncludedLibrary && config.TimelineIncludedLibrary.length > 0;
+                    document.querySelector('#EnableTimeline').checked = hasTimelineLibraries;
+
+                    // Show/hide Timeline libraries container based on checkbox
+                    document.querySelector('#timelineLibrariesContainer').classList.toggle('hide', !hasTimelineLibraries);
+
+                    // Join the timeline libraries with newlines for display in textarea
+                    var timelineLibraries = (config.TimelineIncludedLibrary || []).join('\n');
+                    document.querySelector('#TimelineIncludedLibrary').value = timelineLibraries;
+
                     console.log("Loaded config:", config);
                     Dashboard.hideLoadingMsg();
                 });
 
-                // Set up event listener for the checkbox
+                // Set up event listener for the IP restriction checkbox
                 document.querySelector('#EnableIpRestriction').addEventListener('change', function(e) {
                     document.querySelector('#ipRangesContainer').classList.toggle('hide', !e.target.checked);
+                });
+
+                // Set up event listener for the Timeline checkbox
+                document.querySelector('#EnableTimeline').addEventListener('change', function(e) {
+                    document.querySelector('#timelineLibrariesContainer').classList.toggle('hide', !e.target.checked);
                 });
             });
 
@@ -135,6 +178,19 @@
                         .split('\n')
                         .map(function(line) { return line.trim(); })
                         .filter(function(line) { return line.length > 0; });
+
+                    // Get Timeline settings
+                    var enableTimeline = document.querySelector('#EnableTimeline').checked;
+                    var timelineLibrariesText = document.querySelector('#TimelineIncludedLibrary').value;
+
+                    if (enableTimeline) {
+                        config.TimelineIncludedLibrary = timelineLibrariesText
+                            .split('\n')
+                            .map(function(line) { return line.trim(); })
+                            .filter(function(line) { return line.length > 0; });
+                    } else {
+                        config.TimelineIncludedLibrary = [];
+                    }
 
                     console.log("Saving config:", config);
 

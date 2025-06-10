@@ -1,10 +1,9 @@
-﻿namespace DeoVRDeeplink.Api;
-
-using System.Reflection;
+﻿using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-using Configuration;
-using Utilities;
+using DeoVRDeeplink.Configuration;
+using DeoVRDeeplink.Utilities;
+using DeoVRDeeplink.Model;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
@@ -16,7 +15,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Model;
+
+namespace DeoVRDeeplink.Api;
 
 [ApiController]
 [Route("DeoVRDeeplink")]
@@ -174,6 +174,7 @@ public class DeoVrDeeplinkController(
             ScreenType = screenType,
             StereoMode = stereoMode,
             ThumbnailUrl = $"{baseUrl}/Items/{itemId}/Images/Backdrop",
+            TimelinePreview = $"{baseUrl}/deovr/{itemId}/4096_timelinePreview341x195.jpg",
             Encodings =
             [
                 new DeoVrEncoding
@@ -190,7 +191,7 @@ public class DeoVrDeeplinkController(
                 }
             ],
             Timestamps = await GetDeoVrTimestampsAsync(video),
-            Corrections = new DeoVrCorrections()
+            Corrections = new DeoVrCorrections(),
         };
         return response;
     }

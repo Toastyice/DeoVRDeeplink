@@ -54,12 +54,12 @@ public class DeoVrVideoResponse
     /// </summary>
     [JsonPropertyName("thumbnailUrl")]
     public string ThumbnailUrl { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Gets or sets the URL of the timelinepreview image (Like Jellyfin trickplay)
     /// </summary>
     [JsonPropertyName("timelinePreview")]
-    public string TimelinePreview { get; set; } = "https://nextcloud.schella.io/s/WPwEXWf2bMtWd8j/download/4096_timelinePreview341x195.jpg";
+    public string TimelinePreview { get; set; } = string.Empty;
     
      /// <summary>
     /// Gets or sets the list of timestamps for the video.

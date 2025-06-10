@@ -1,13 +1,14 @@
-﻿namespace DeoVRDeeplink;
-
-using System.Text.RegularExpressions;
-using Configuration;
+﻿using System.Text.RegularExpressions;
+using DeoVRDeeplink.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using Microsoft.Extensions.Logging;
+
+namespace DeoVRDeeplink;
+
 
 public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
@@ -18,7 +19,8 @@ public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHas
     public override string Name => "DeoVRDeeplink";
     public override Guid Id => Guid.Parse("e7bea589-e339-490c-8738-596e42b9042e");
     public override string Description => "Adds deeplink support for DeoVR player";
-
+    
+    
     public DeoVrDeeplinkPlugin(
         IApplicationPaths applicationPaths,
         IXmlSerializer xmlSerializer,
@@ -112,7 +114,7 @@ public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHas
         }
         return string.Empty;
     }
-
+    
     public IEnumerable<PluginPageInfo> GetPages()
     {
         yield return new PluginPageInfo

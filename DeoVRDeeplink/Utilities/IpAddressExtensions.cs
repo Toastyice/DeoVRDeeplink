@@ -1,7 +1,7 @@
-﻿namespace DeoVRDeeplink.Utilities;
-
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
+
+namespace DeoVRDeeplink.Utilities;
 
 /// <summary>
 /// Extension methods for IP address operations

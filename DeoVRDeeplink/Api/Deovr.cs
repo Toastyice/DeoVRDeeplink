@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Net.Mime;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Library;
@@ -44,7 +45,7 @@ public class DeoVrController : ControllerBase
     /// Returns a JSON structure compatible with DeoVR deeplinks
     /// </summary>
     [HttpGet]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     public IActionResult GetScenes()
     {
         try
