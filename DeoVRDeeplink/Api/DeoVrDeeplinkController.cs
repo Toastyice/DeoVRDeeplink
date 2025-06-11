@@ -260,7 +260,7 @@ public class DeoVrDeeplinkController(
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("Client disconnected during streaming for movie {MovieId}", movieId);
+            _logger.LogDebug("Client disconnected during streaming for movie {MovieId}", movieId);
             // This is expected when client disconnects
         }
     }
