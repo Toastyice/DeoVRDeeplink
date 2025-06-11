@@ -23,14 +23,14 @@ public class StaticContentController : ControllerBase
     
     /// <summary>Serves embedded client JavaScript.</summary>
     [HttpGet("ClientScript")]
-    [Produces(MediaTypeNames.Application.Json)]
+    [Produces("application/javascript")]
     [AllowAnonymous]
     public IActionResult GetClientScript()
     {
         try
         {
             var stream = _assembly.GetManifestResourceStream(_clientScriptResourcePath);
-            if (stream != null) return File(stream, MediaTypeNames.Application.Json);
+            if (stream != null) return File(stream, "application/javascript");
             _logger.LogError("Resource not found: {Path}", _clientScriptResourcePath);
             return NotFound();
 
