@@ -163,7 +163,6 @@ public class DeoVrDeeplinkController(
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
         var tokenData = $"{movieId}:{expiry}";
         var sig = SignUrl(tokenData, proxySecret);
-        var streamUrl = $"{baseUrl}/deovr/proxy/{movieId}/{expiry}/{sig}/stream.mp4";
 
         var response = new DeoVrVideoResponse
         {
@@ -185,7 +184,7 @@ public class DeoVrDeeplinkController(
                         new DeoVrVideoSource
                         {
                             Resolution = resolution,
-                            Url = streamUrl
+                            Url = $"{baseUrl}/deovr/proxy/{movieId}/{expiry}/{sig}/stream.mp4"
                         }
                     ]
                 }
