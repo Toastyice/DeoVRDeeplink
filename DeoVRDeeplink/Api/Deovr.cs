@@ -75,7 +75,7 @@ public class DeoVrController : ControllerBase
                 {
                     Title = video.Name,
                     VideoLength = GetVideoDuration(video),
-                    VideoUrl = $"{baseUrl}/DeoVRDeeplink/json/{video.Id}/response.json",
+                    VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
                     ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop"
                 }).ToList();
 

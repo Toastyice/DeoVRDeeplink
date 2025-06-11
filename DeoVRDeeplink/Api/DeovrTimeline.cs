@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace DeoVRDeeplink.Api;
 
 [ApiController]
-[Route("deovr")]
+[Route("deovr/timeline")]
 public class TimelineController : ControllerBase
 {
     private readonly IApplicationPaths _appPaths;

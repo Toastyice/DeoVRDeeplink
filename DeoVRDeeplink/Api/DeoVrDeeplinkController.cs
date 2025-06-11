@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging;
 namespace DeoVRDeeplink.Api;
 
 [ApiController]
-[Route("DeoVRDeeplink")]
+[Route("deovr")]
 public class DeoVrDeeplinkController(
     ILogger<DeoVrDeeplinkController> logger,
     ILibraryManager libraryManager,
@@ -163,7 +163,7 @@ public class DeoVrDeeplinkController(
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
         var tokenData = $"{movieId}:{expiry}";
         var sig = SignUrl(tokenData, proxySecret);
-        var streamUrl = $"{baseUrl}/DeoVRDeeplink/proxy/{movieId}/{expiry}/{sig}/stream.mp4";
+        var streamUrl = $"{baseUrl}/deovr/proxy/{movieId}/{expiry}/{sig}/stream.mp4";
 
         var response = new DeoVrVideoResponse
         {
@@ -174,7 +174,7 @@ public class DeoVrDeeplinkController(
             ScreenType = screenType,
             StereoMode = stereoMode,
             ThumbnailUrl = $"{baseUrl}/Items/{itemId}/Images/Backdrop",
-            TimelinePreview = $"{baseUrl}/deovr/{itemId}/4096_timelinePreview341x195.jpg",
+            TimelinePreview = $"{baseUrl}/deovr/timeline/{itemId}/4096_timelinePreview341x195.jpg",
             Encodings =
             [
                 new DeoVrEncoding

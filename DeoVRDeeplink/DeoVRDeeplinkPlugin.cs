@@ -53,7 +53,7 @@ public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHas
 
         var indexContents = File.ReadAllText(indexFile);
         var basePath = GetBasePath() ?? string.Empty;
-        var scriptElement = $"<script plugin=\"DeoVRDeeplink\" src=\"{basePath}/DeoVRDeeplink/ClientScript\"></script>";
+        var scriptElement = $"<script plugin=\"DeoVRDeeplink\" src=\"{basePath}/deovr/ClientScript\"></script>";
 
         // If already present, skip
         if (indexContents.Contains(scriptElement))
