@@ -1,5 +1,4 @@
 ﻿using System.Net.Mime;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using DeoVRDeeplink.Configuration;
@@ -29,60 +28,12 @@ public class DeoVrDeeplinkController(
     IHttpContextAccessor httpContextAccessor,
     IServerConfigurationManager config) : ControllerBase
 {
-    private readonly Assembly _assembly = Assembly.GetExecutingAssembly();
-
-    private readonly string _clientScriptResourcePath =
-        $"{DeoVrDeeplinkPlugin.Instance?.GetType().Namespace}.Web.DeoVRClient.js";
-
     private readonly IServerConfigurationManager _config = config;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly ILibraryManager _libraryManager = libraryManager;
     private readonly ILogger<DeoVrDeeplinkController> _logger = logger;
     private readonly IMediaEncoder _mediaEncoder = mediaEncoder;
     private readonly IMediaSourceManager _mediaSourceManager = mediaSourceManager;
-
-    /// <summary>Serves embedded client JavaScript.</summary>
-    [HttpGet("ClientScript")]
-    [Produces(MediaTypeNames.Application.Json)]
-    [AllowAnonymous]
-    public IActionResult GetClientScript()
-    {
-        try
-        {
-            var stream = _assembly.GetManifestResourceStream(_clientScriptResourcePath);
-            if (stream != null) return File(stream, MediaTypeNames.Application.Json);
-            _logger.LogError("Resource not found: {Path}", _clientScriptResourcePath);
-            return NotFound();
-
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving client script resource.");
-            return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving script resource.");
-        }
-    }
-
-    /// <summary>Serves the icon image.</summary>
-    [HttpGet("Icon")]
-    [Produces(MediaTypeNames.Image.Png)]
-    [AllowAnonymous]
-    public IActionResult GetIcon()
-    {
-        const string resourceName = "DeoVRDeeplink.Web.Icon.png";
-        try
-        {
-            var stream = _assembly.GetManifestResourceStream(resourceName);
-            if (stream == null)
-                return NotFound();
-
-            return File(stream, MediaTypeNames.Image.Png);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving icon resource.");
-            return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving icon resource.");
-        }
-    }
 
     /// <summary>
     ///     Returns DeoVR compatible JSON for a movie.

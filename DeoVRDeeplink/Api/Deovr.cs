@@ -12,33 +12,21 @@ using DeoVRDeeplink.Utilities;
 
 namespace DeoVRDeeplink.Api;
 
-//Include library in /deovr optin?
-//Link to all movies
-//1. Get the library to work done
-//2. Get additional metadata to work
-//3. Trickplay images possible?
-
 [ApiController]
 [Route("deovr")]
 public class DeoVrController : ControllerBase
 {
     private readonly ILogger<DeoVrController> _logger;
     private readonly ILibraryManager _libraryManager;
-    private readonly IMediaEncoder _mediaEncoder;
-    private readonly IServerConfigurationManager _config;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public DeoVrController(
         ILogger<DeoVrController> logger,
         ILibraryManager libraryManager,
-        IMediaEncoder mediaEncoder,
-        IServerConfigurationManager config,
         IHttpContextAccessor httpContextAccessor)
     {
         _logger = logger;
         _libraryManager = libraryManager;
-        _mediaEncoder = mediaEncoder;
-        _config = config;
         _httpContextAccessor = httpContextAccessor;
     }
 
