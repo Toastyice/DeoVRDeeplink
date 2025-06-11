@@ -2,8 +2,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using DeoVRDeeplink.Configuration;
-using DeoVRDeeplink.Utilities;
 using DeoVRDeeplink.Model;
+using DeoVRDeeplink.Utilities;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
@@ -190,7 +190,7 @@ public class DeoVrDeeplinkController(
                 }
             ],
             Timestamps = await GetDeoVrTimestampsAsync(video),
-            Corrections = new DeoVrCorrections(),
+            Corrections = new DeoVrCorrections()
         };
         return response;
     }
@@ -290,7 +290,6 @@ public class DeoVrDeeplinkController(
             $"{jellyfinInternalBaseUrl}/Videos/{movieId}/stream.mp4?Static=true&mediaSourceId={movieId}&deviceId=DeoVRDeeplink_v1";
 
         var httpClient = StaticHttpClient.Instance;
-
         var forwardRequest = new HttpRequestMessage(HttpMethod.Get, jellyfinUrl);
 
         // Forward the Range header for seeking
@@ -298,7 +297,8 @@ public class DeoVrDeeplinkController(
             foreach (var value in rangeValues)
                 forwardRequest.Headers.TryAddWithoutValidation("Range", value);
 
-        using var resp = await httpClient.SendAsync(forwardRequest, HttpCompletionOption.ResponseHeadersRead);
+        using var resp = await httpClient.SendAsync(forwardRequest, HttpCompletionOption.ResponseHeadersRead,
+            HttpContext.RequestAborted);
 
         Response.StatusCode = (int)resp.StatusCode;
 
@@ -311,14 +311,25 @@ public class DeoVrDeeplinkController(
         // Remove headers that should not be set by user code
         Response.Headers.Remove("transfer-encoding");
 
-        // Proxy the content stream in large chunks for performance
+        // Proxy the content stream in large chunks for performance with cancellation support
         await using var stream = await resp.Content.ReadAsStreamAsync();
         var buffer = new byte[2 * 1024 * 1024]; // 2 MB chunks
-        int bytesRead;
-        while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+
+        try
         {
-            await Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead));
-            await Response.Body.FlushAsync();
+            int bytesRead;
+            while ((bytesRead = await stream.ReadAsync(buffer, HttpContext.RequestAborted)) > 0)
+            {
+                await Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead), HttpContext.RequestAborted);
+                if (HttpContext.RequestAborted.IsCancellationRequested)
+                    break;
+                await Response.Body.FlushAsync(HttpContext.RequestAborted);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Client disconnected during streaming for movie {MovieId}", movieId);
+            // This is expected when client disconnects
         }
     }
 
@@ -328,7 +339,7 @@ public class DeoVrDeeplinkController(
         var req = _httpContextAccessor.HttpContext?.Request;
         return req == null ? "" : $"{req.Scheme}://{req.Host}{req.PathBase}";
     }
-    
+
     private string GetInternalBaseUrl()
     {
         var options = _config.GetNetworkConfiguration();
@@ -344,5 +355,11 @@ public class DeoVrDeeplinkController(
 
 public class StaticHttpClient
 {
-    public static readonly HttpClient Instance = new();
+    private static readonly Lazy<HttpClient> _instance = new(() => new HttpClient
+    {
+        Timeout = Timeout.InfiniteTimeSpan, // No timeout for streaming
+        DefaultRequestHeaders = { ConnectionClose = false }
+    });
+
+    public static HttpClient Instance => _instance.Value;
 }
