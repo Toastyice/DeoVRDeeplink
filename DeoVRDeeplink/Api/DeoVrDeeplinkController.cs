@@ -8,8 +8,7 @@ using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.MediaEncoding;
-using MediaBrowser.Model.Dlna;
+using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Model.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -24,16 +23,16 @@ public class DeoVrDeeplinkController(
     ILogger<DeoVrDeeplinkController> logger,
     ILibraryManager libraryManager,
     IMediaSourceManager mediaSourceManager,
-    IMediaEncoder mediaEncoder,
     IHttpContextAccessor httpContextAccessor,
-    IServerConfigurationManager config) : ControllerBase
+    IServerConfigurationManager config,
+    IItemRepository itemRepository) : ControllerBase
 {
     private readonly IServerConfigurationManager _config = config;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly ILibraryManager _libraryManager = libraryManager;
     private readonly ILogger<DeoVrDeeplinkController> _logger = logger;
-    private readonly IMediaEncoder _mediaEncoder = mediaEncoder;
     private readonly IMediaSourceManager _mediaSourceManager = mediaSourceManager;
+    private readonly IItemRepository _itemRepository = itemRepository;
 
     /// <summary>
     ///     Returns DeoVR compatible JSON for a movie.
@@ -118,7 +117,7 @@ public class DeoVrDeeplinkController(
                     ]
                 }
             ],
-            Timestamps = await GetDeoVrTimestampsAsync(video),
+            Timestamps = GetDeoVrTimestamps(video),
             Corrections = new DeoVrCorrections()
         };
         return response;
@@ -127,26 +126,30 @@ public class DeoVrDeeplinkController(
     /// <summary>
     ///     Retrieves chapter timestamps, in seconds, for the item.
     /// </summary>
-    private async Task<List<DeoVrTimestamps>> GetDeoVrTimestampsAsync(BaseItem item)
+    private List<DeoVrTimestamps> GetDeoVrTimestamps(BaseItem item)
     {
-        var source = item.GetMediaSources(false).FirstOrDefault();
-        var info = await _mediaEncoder.GetMediaInfo(
-            new MediaInfoRequest
-            {
-                MediaSource = source,
-                MediaType = DlnaProfileType.Video,
-                ExtractChapters = true
-            },
-            CancellationToken.None);
+        try
+        {   
+            var chapters = _itemRepository.GetChapters(item);
 
-        return info.Chapters?
-            .Select(ch => new DeoVrTimestamps
-            {
-                ts = (int)(ch.StartPositionTicks / TimeSpan.TicksPerSecond),
-                name = ch.Name
-            }).ToList() ?? [];
+            if (chapters != null && chapters.Count != 0)
+                return chapters
+                    .Select(ch => new DeoVrTimestamps
+                    {
+                        ts = (int)(ch.StartPositionTicks / TimeSpan.TicksPerSecond),
+                        name = ch.Name ?? "Untitled Chapter"
+                    })
+                    .ToList();
+            _logger.LogDebug("No chapters found for item {ItemName}", item.Name);
+            return [];
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting chapters for item {ItemName}", item.Name);
+            return [];
+        }
     }
-
     // Returns VR display type
 
     private static (string StereoMode, string ScreenType) Get3DType(Video video, PluginConfiguration config)
