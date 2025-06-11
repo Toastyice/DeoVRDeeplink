@@ -1,16 +1,17 @@
 ﻿# DeoVR Deeplink Proxy Plugin for Jellyfin
 
 > [!CAUTION]
-> All movies are exposed UNAUTHENTICATED from DeoVRDeeplink/json/videoID/response.json
+> Configure <b>IP Restrictions</b> in Plugin settings if your Jellyfin server is public or in an untrusted network!
 
-A plugin for Jellyfin that enables secure, expiring, signed video stream URLs for use with [DeoVR](https://deovr.com/app) and other clients needing quick access to individual media files without exposing your Jellyfin credentials.
+A plugin for Jellyfin that adds (partial) support with [DeoVR](https://deovr.com/app)
+Allows direct browsing when you open jellyfin with DeoVR.
 
 ## Features
 
-- **UI Changes:** adds a Play in DeoVR button
+- **DeoVR Browsing** Browse your Libraries in DeoVR
+- **Video scrubbing in DeoVR** Optionally generate timeline images to allow video scrubbing (optional)
+- **UI Changes:** adds a 'Play in DeoVR' button
 - **Secure signed links:** Temporary, HMAC-signed links for proxying video streams.
-- **Expiry enforcement:** Links are only valid for a twice the film length.
-- **Chunked proxy streaming:** Efficient forwarding without direct Jellyfin API exposure.
 - **DeoVR-compatible JSON responses:** Works seamlessly with [DeoVR](https://deovr.com/app/doc).
 
 ## Preview
@@ -24,7 +25,6 @@ A plugin for Jellyfin that enables secure, expiring, signed video stream URLs fo
 ### Prerequisites
 
 - [Jellyfin Media Server](https://jellyfin.org/) with a valid https certificate
-- .NET 8.0 SDK or later (for building)
 - DeoVR for testing client integration (optional)
 
 ## Installation ##
@@ -41,11 +41,14 @@ A plugin for Jellyfin that enables secure, expiring, signed video stream URLs fo
   - **Fallback Projection Type:** _(Force a projection type if the film's metadata does not indicate the mode.)_.
   - **Fallback Stereo Mode:** _(Force a stereo mode if the film's metadata doesn't indicate it)_.
   - **IP Restriction:** _(Configure IP restrictions for the json and proxy endpoints)_.
+  - **Timeline** _(Optionally generate timeline images for specific libraries)_.
 
 ### Usage
 
 1. **DeoVR Integration:**  
-    Click the Open in DeoVR button
+    Simply open DeoVR and enter your Jellyfin URL
+    OR
+    Click 'Open in DeoVR' Button
 
 ## Security
 
@@ -53,17 +56,19 @@ A plugin for Jellyfin that enables secure, expiring, signed video stream URLs fo
 - Links cannot be forged or reused after expiry.
 - Secret is never sent to the client.
 - The expiry time is twice the length of the film.
-- Optional IP restrictions
+- Optional IP restrictions on all routes expect script and icon
 
 ---
 
 ## Advanced
 
 - **endpoints:**
-  - `/DeoVRDeeplink/ClientScript`
-  - `/DeoVRDeeplink/Icon`
-  - `/DeoVRDeeplink/json/<MovieUUID>/response.json`
-  - `/DeoVRDeeplink/proxy/<MovieUUID>/<Expiry>/<Signature>/stream.mp4`
+  - `/deovr`
+  - `/deovr/ClientScript`
+  - `/deovr/Icon`
+  - `/deovr/json/<MovieUUID>/response.json`
+  - `/deovr/proxy/<MovieUUID>/<Expiry>/<Signature>/stream.mp4`
+  - `/deovr/timeline/<MovieUUID>/4096_timelinePreview341x195.jpg`
 
 ---
 
