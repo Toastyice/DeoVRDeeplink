@@ -1,7 +1,55 @@
-﻿namespace DeoVRDeeplink.Utilities;
-
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Sockets;
+
+namespace DeoVRDeeplink.Utilities;
+
+public class IpWhitelistAttribute : TypeFilterAttribute
+{
+    public IpWhitelistAttribute() : base(typeof(IpWhitelistFilter))
+    {
+    }
+}
+
+public class IpWhitelistFilter : IAuthorizationFilter
+{
+    private readonly ILogger<IpWhitelistFilter> _logger;
+
+    public IpWhitelistFilter(ILogger<IpWhitelistFilter> logger)
+    {
+        _logger = logger;
+    }
+
+    public void OnAuthorization(AuthorizationFilterContext context)
+    {
+        var clientIp = context.HttpContext.Connection.RemoteIpAddress;
+
+        if (clientIp == null)
+        {
+            _logger.LogWarning("Unable to determine client IP address");
+            context.Result = new ForbidResult();
+            return;
+        }
+
+        var config = DeoVrDeeplinkPlugin.Instance?.Configuration;
+        if (config?.AllowedIpRanges == null || !config.AllowedIpRanges.Any())
+        {
+            // If no IP ranges configured, allow all (or deny all - your choice)
+            return;
+        }
+
+        var isAllowed = config.AllowedIpRanges.Any(clientIp.IsInCidrRange);
+
+        if (!isAllowed)
+        {
+            _logger.LogWarning("Unauthorized access attempt from IP: {IpAddress}", clientIp);
+            context.Result = new ForbidResult();
+        }
+    }
+}
+
 
 /// <summary>
 /// Extension methods for IP address operations

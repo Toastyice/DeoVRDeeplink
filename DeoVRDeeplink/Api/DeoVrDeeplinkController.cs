@@ -1,118 +1,47 @@
-﻿namespace DeoVRDeeplink.Api;
-
-using System.Reflection;
+﻿using System.Net.Mime;
 using System.Security.Cryptography;
 using System.Text;
-using Configuration;
-using Utilities;
+using DeoVRDeeplink.Configuration;
+using DeoVRDeeplink.Model;
+using DeoVRDeeplink.Utilities;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.MediaEncoding;
-using MediaBrowser.Model.Dlna;
+using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Model.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
+namespace DeoVRDeeplink.Api;
+
 [ApiController]
-[Route("DeoVRDeeplink")]
+[Route("deovr")]
 public class DeoVrDeeplinkController(
     ILogger<DeoVrDeeplinkController> logger,
     ILibraryManager libraryManager,
     IMediaSourceManager mediaSourceManager,
-    IMediaEncoder mediaEncoder,
     IHttpContextAccessor httpContextAccessor,
-    IServerConfigurationManager config) : ControllerBase
+    IServerConfigurationManager config,
+    IItemRepository itemRepository) : ControllerBase
 {
-    private readonly Assembly _assembly = Assembly.GetExecutingAssembly();
-
-    private readonly string _clientScriptResourcePath =
-        $"{DeoVrDeeplinkPlugin.Instance?.GetType().Namespace}.Web.DeoVRClient.js";
-
     private readonly IServerConfigurationManager _config = config;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly ILibraryManager _libraryManager = libraryManager;
     private readonly ILogger<DeoVrDeeplinkController> _logger = logger;
-    private readonly IMediaEncoder _mediaEncoder = mediaEncoder;
     private readonly IMediaSourceManager _mediaSourceManager = mediaSourceManager;
-
-    /// <summary>Serves embedded client JavaScript.</summary>
-    [HttpGet("ClientScript")]
-    [Produces("application/javascript")]
-    public IActionResult GetClientScript()
-    {
-        try
-        {
-            var stream = _assembly.GetManifestResourceStream(_clientScriptResourcePath);
-            if (stream == null)
-            {
-                _logger.LogError("Resource not found: {Path}", _clientScriptResourcePath);
-                return NotFound();
-            }
-
-            return File(stream, "application/javascript");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving client script resource.");
-            return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving script resource.");
-        }
-    }
-
-    /// <summary>Serves the icon image.</summary>
-    [HttpGet("Icon")]
-    [AllowAnonymous]
-    public IActionResult GetIcon()
-    {
-        const string resourceName = "DeoVRDeeplink.Web.Icon.png";
-        try
-        {
-            var stream = _assembly.GetManifestResourceStream(resourceName);
-            if (stream == null)
-                return NotFound();
-
-            return File(stream, "image/png");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving icon resource.");
-            return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving icon resource.");
-        }
-    }
+    private readonly IItemRepository _itemRepository = itemRepository;
 
     /// <summary>
     ///     Returns DeoVR compatible JSON for a movie.
     /// </summary>
     [HttpGet("json/{movieId}/response.json")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
+    [IpWhitelist]
     public async Task<IActionResult> GetDeoVrResponse(string movieId)
     {
-        // Check if IP restriction is enabled
-        if (DeoVrDeeplinkPlugin.Instance!.Configuration.EnableIpRestriction)
-        {
-            // Get client IP address
-            var clientIp = HttpContext.Connection.RemoteIpAddress;
-
-            if (clientIp == null)
-            {
-                _logger.LogWarning("Unable to determine client IP address");
-                return Forbid();
-            }
-
-            // Check if the client IP is in any of the allowed ranges
-            var isAllowed =
-                DeoVrDeeplinkPlugin.Instance.Configuration.AllowedIpRanges.Any(clientIp.IsInCidrRange);
-
-            if (!isAllowed)
-            {
-                _logger.LogWarning("Unauthorized access attempt from IP: {IpAddress}", clientIp);
-                return Forbid();
-            }
-        }
-
         try
         {
             var response = await BuildVideoResponse(movieId);
@@ -152,7 +81,7 @@ public class DeoVrDeeplinkController(
         var resolution = stream?.Height ?? 2160;
         var codec = stream?.Codec ?? "h264";
 
-        var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / 10_000_000);
+        var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond);
 
         var (stereoMode, screenType) = Get3DType(video, DeoVrDeeplinkPlugin.Instance!.Configuration);
 
@@ -162,7 +91,6 @@ public class DeoVrDeeplinkController(
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
         var tokenData = $"{movieId}:{expiry}";
         var sig = SignUrl(tokenData, proxySecret);
-        var streamUrl = $"{baseUrl}/DeoVRDeeplink/proxy/{movieId}/{expiry}/{sig}/stream.mp4";
 
         var response = new DeoVrVideoResponse
         {
@@ -172,8 +100,8 @@ public class DeoVrDeeplinkController(
             VideoLength = runtimeSeconds,
             ScreenType = screenType,
             StereoMode = stereoMode,
-            ThumbnailUrl = $"{baseUrl}/Items/{itemId}/Images/Primary",
-            VideoThumbnail = $"{baseUrl}/Items/{itemId}/Images/Primary",
+            ThumbnailUrl = $"{baseUrl}/Items/{itemId}/Images/Backdrop",
+            TimelinePreview = $"{baseUrl}/deovr/timeline/{itemId}/4096_timelinePreview341x195.jpg",
             Encodings =
             [
                 new DeoVrEncoding
@@ -184,12 +112,12 @@ public class DeoVrDeeplinkController(
                         new DeoVrVideoSource
                         {
                             Resolution = resolution,
-                            Url = streamUrl
+                            Url = $"{baseUrl}/deovr/proxy/{movieId}/{expiry}/{sig}/stream.mp4"
                         }
                     ]
                 }
             ],
-            Timestamps = await GetDeoVrTimestampsAsync(video),
+            Timestamps = GetDeoVrTimestamps(video),
             Corrections = new DeoVrCorrections()
         };
         return response;
@@ -198,26 +126,30 @@ public class DeoVrDeeplinkController(
     /// <summary>
     ///     Retrieves chapter timestamps, in seconds, for the item.
     /// </summary>
-    private async Task<List<DeoVrTimestamps>> GetDeoVrTimestampsAsync(BaseItem item)
+    private List<DeoVrTimestamps> GetDeoVrTimestamps(BaseItem item)
     {
-        var source = item.GetMediaSources(false).FirstOrDefault();
-        var info = await _mediaEncoder.GetMediaInfo(
-            new MediaInfoRequest
-            {
-                MediaSource = source,
-                MediaType = DlnaProfileType.Video,
-                ExtractChapters = true
-            },
-            CancellationToken.None);
+        try
+        {   
+            var chapters = _itemRepository.GetChapters(item);
 
-        return info.Chapters?
-            .Select(ch => new DeoVrTimestamps
-            {
-                ts = (int)(ch.StartPositionTicks / 10_000_000),
-                name = ch.Name
-            }).ToList() ?? [];
+            if (chapters != null && chapters.Count != 0)
+                return chapters
+                    .Select(ch => new DeoVrTimestamps
+                    {
+                        ts = (int)(ch.StartPositionTicks / TimeSpan.TicksPerSecond),
+                        name = ch.Name ?? "Untitled Chapter"
+                    })
+                    .ToList();
+            _logger.LogDebug("No chapters found for item {ItemName}", item.Name);
+            return [];
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting chapters for item {ItemName}", item.Name);
+            return [];
+        }
     }
-
     // Returns VR display type
 
     private static (string StereoMode, string ScreenType) Get3DType(Video video, PluginConfiguration config)
@@ -249,7 +181,7 @@ public class DeoVrDeeplinkController(
     ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
     [HttpGet("proxy/{movieId}/{expiry}/{signature}/stream.mp4")]
-    [AllowAnonymous]
+    [AllowAnonymous] //fine? has performance problems otherwise
     public async Task ProxyStream(string movieId, long expiry, string signature)
     {
         // Validate movieId format
@@ -290,7 +222,6 @@ public class DeoVrDeeplinkController(
             $"{jellyfinInternalBaseUrl}/Videos/{movieId}/stream.mp4?Static=true&mediaSourceId={movieId}&deviceId=DeoVRDeeplink_v1";
 
         var httpClient = StaticHttpClient.Instance;
-
         var forwardRequest = new HttpRequestMessage(HttpMethod.Get, jellyfinUrl);
 
         // Forward the Range header for seeking
@@ -298,7 +229,8 @@ public class DeoVrDeeplinkController(
             foreach (var value in rangeValues)
                 forwardRequest.Headers.TryAddWithoutValidation("Range", value);
 
-        using var resp = await httpClient.SendAsync(forwardRequest, HttpCompletionOption.ResponseHeadersRead);
+        using var resp = await httpClient.SendAsync(forwardRequest, HttpCompletionOption.ResponseHeadersRead,
+            HttpContext.RequestAborted);
 
         Response.StatusCode = (int)resp.StatusCode;
 
@@ -311,14 +243,25 @@ public class DeoVrDeeplinkController(
         // Remove headers that should not be set by user code
         Response.Headers.Remove("transfer-encoding");
 
-        // Proxy the content stream in large chunks for performance
+        // Proxy the content stream in large chunks for performance with cancellation support
         await using var stream = await resp.Content.ReadAsStreamAsync();
         var buffer = new byte[2 * 1024 * 1024]; // 2 MB chunks
-        int bytesRead;
-        while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+
+        try
         {
-            await Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead));
-            await Response.Body.FlushAsync();
+            int bytesRead;
+            while ((bytesRead = await stream.ReadAsync(buffer, HttpContext.RequestAborted)) > 0)
+            {
+                await Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead), HttpContext.RequestAborted);
+                if (HttpContext.RequestAborted.IsCancellationRequested)
+                    break;
+                await Response.Body.FlushAsync(HttpContext.RequestAborted);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogDebug("Client disconnected during streaming for movie {MovieId}", movieId);
+            // This is expected when client disconnects
         }
     }
 
@@ -328,7 +271,7 @@ public class DeoVrDeeplinkController(
         var req = _httpContextAccessor.HttpContext?.Request;
         return req == null ? "" : $"{req.Scheme}://{req.Host}{req.PathBase}";
     }
-    
+
     private string GetInternalBaseUrl()
     {
         var options = _config.GetNetworkConfiguration();
@@ -344,5 +287,11 @@ public class DeoVrDeeplinkController(
 
 public class StaticHttpClient
 {
-    public static readonly HttpClient Instance = new();
+    private static readonly Lazy<HttpClient> _instance = new(() => new HttpClient
+    {
+        Timeout = Timeout.InfiniteTimeSpan, // No timeout for streaming
+        DefaultRequestHeaders = { ConnectionClose = false }
+    });
+
+    public static HttpClient Instance => _instance.Value;
 }

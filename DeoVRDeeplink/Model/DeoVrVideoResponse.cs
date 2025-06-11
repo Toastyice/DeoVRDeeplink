@@ -1,7 +1,6 @@
-﻿namespace DeoVRDeeplink.Api;
+﻿using System.Text.Json.Serialization;
 
-using System.Text.Json.Serialization;
-using System.Collections.Generic;
+namespace DeoVRDeeplink.Model;
 
 /// <summary>
 /// Represents a response containing video details from DeoVR.
@@ -57,12 +56,12 @@ public class DeoVrVideoResponse
     public string ThumbnailUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the video thumbnail data or URL.
+    /// Gets or sets the URL of the timelinepreview image (Like Jellyfin trickplay)
     /// </summary>
-    [JsonPropertyName("videoThumbnail")]
-    public string VideoThumbnail { get; set; } = string.Empty;
-
-    /// <summary>
+    [JsonPropertyName("timelinePreview")]
+    public string TimelinePreview { get; set; } = string.Empty;
+    
+     /// <summary>
     /// Gets or sets the list of timestamps for the video.
     /// </summary>
     [JsonPropertyName("timeStamps")]

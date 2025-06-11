@@ -12,7 +12,7 @@
     console.log(`[DeoVR v${SCRIPT_VERSION}] [Hardened+Fixed] Initializing...`);
 
     // --- Setup ---
-    const pluginBasePath = '/DeoVRDeeplink';
+    const pluginBasePath = '/deovr';
     const iconUrl = `${pluginBasePath}/Icon`;
     const buttonClassName = 'deovrButton';
 

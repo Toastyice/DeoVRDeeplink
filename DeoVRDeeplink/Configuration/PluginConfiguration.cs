@@ -89,4 +89,9 @@ public class PluginConfiguration : BasePluginConfiguration
     ///     Whether IP restriction is enabled
     /// </summary>
     public bool EnableIpRestriction { get; set; }
+    
+    /// <summary>
+    ///     Names of Libraries to create TimelineImages
+    /// </summary>
+    public string[] TimelineIncludedLibrary { get; set; } = [];
 }
