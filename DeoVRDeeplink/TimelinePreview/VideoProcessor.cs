@@ -87,19 +87,16 @@ public class VideoProcessor
 
     private int CalculateIntervalForItem(BaseItem item)
     {
-        if (item is Video videoItem && videoItem.RunTimeTicks.HasValue)
-        {
-            // Calculate interval to get approximately 252 frames from the entire video
-            var totalDurationTicks = videoItem.RunTimeTicks.Value;
-            var intervalTicks = totalDurationTicks / 252;
+        if (item is not Video { RunTimeTicks: not null } videoItem)
+            return 100_000_000; // Default 10 seconds in ticks
+        // Calculate interval to get approximately 252 frames from the entire video
+        var totalDurationTicks = videoItem.RunTimeTicks.Value;
+        var intervalTicks = totalDurationTicks / 252;
             
-            // Ensure minimum 10 second interval
-            var minInterval = 10 * TimeSpan.TicksPerSecond; // 10 seconds in ticks
+        // Ensure minimum 10 second interval
+        const long minInterval = 10 * TimeSpan.TicksPerSecond; // 10 seconds in ticks
             
-            return (int)Math.Max(intervalTicks, minInterval);
-        }
-        
-        return 100_000_000; // Default 10 seconds in ticks
+        return (int)Math.Max(intervalTicks, minInterval);
     }
 
 
@@ -112,12 +109,12 @@ public class VideoProcessor
     private List<string> GetFFmpegArgumentsForTimeline(BaseItem item, MediaSourceInfo mediaSource, string outputPath)
     {
         var fpsValue = GetFFmpegFpsForFilter(item); // This is your calculated value, not actual FPS
-        var fpsString = fpsValue.ToString("F4", CultureInfo.InvariantCulture);
-        _logger.LogError($"fps:{fpsString}");
+        var fpsString = fpsValue.ToString(CultureInfo.InvariantCulture);
+
         var args = new List<string>
         {
             "-i", $"\"{mediaSource.Path}\"",
-            "-vf", $"\"crop=iw/2:ih:0:0,fps=1/{fpsString},scale=341:195,tile=12x21:margin=0:padding=0\"",
+            "-vf", $"\"fps=1/{fpsString},crop=iw/2:ih:0:0,scale=341:195,tile=12x21:margin=0:padding=0\"",
             "-q:v", "1",
             "-y",
             $"\"{outputPath}\""
@@ -151,7 +148,7 @@ public class VideoProcessor
     
         // Log the complete FFmpeg command
         var fullCommand = $"{_mediaEncoder.EncoderPath} {argString}";
-        _logger.LogInformation($"Executing FFmpeg command: {fullCommand}");
+        _logger.LogInformation("Executing FFmpeg command: {FullCommand}", fullCommand);
     
         try
         {
