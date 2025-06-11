@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Net.Mime;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using DeoVRDeeplink.Configuration;
@@ -42,19 +43,17 @@ public class DeoVrDeeplinkController(
 
     /// <summary>Serves embedded client JavaScript.</summary>
     [HttpGet("ClientScript")]
-    [Produces("application/javascript")]
+    [Produces(MediaTypeNames.Application.Json)]
+    [AllowAnonymous]
     public IActionResult GetClientScript()
     {
         try
         {
             var stream = _assembly.GetManifestResourceStream(_clientScriptResourcePath);
-            if (stream == null)
-            {
-                _logger.LogError("Resource not found: {Path}", _clientScriptResourcePath);
-                return NotFound();
-            }
+            if (stream != null) return File(stream, MediaTypeNames.Application.Json);
+            _logger.LogError("Resource not found: {Path}", _clientScriptResourcePath);
+            return NotFound();
 
-            return File(stream, "application/javascript");
         }
         catch (Exception ex)
         {
@@ -65,6 +64,7 @@ public class DeoVrDeeplinkController(
 
     /// <summary>Serves the icon image.</summary>
     [HttpGet("Icon")]
+    [Produces(MediaTypeNames.Image.Png)]
     [AllowAnonymous]
     public IActionResult GetIcon()
     {
@@ -75,7 +75,7 @@ public class DeoVrDeeplinkController(
             if (stream == null)
                 return NotFound();
 
-            return File(stream, "image/png");
+            return File(stream, MediaTypeNames.Image.Png);
         }
         catch (Exception ex)
         {
@@ -88,32 +88,10 @@ public class DeoVrDeeplinkController(
     ///     Returns DeoVR compatible JSON for a movie.
     /// </summary>
     [HttpGet("json/{movieId}/response.json")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
+    [IpWhitelist]
     public async Task<IActionResult> GetDeoVrResponse(string movieId)
     {
-        // Check if IP restriction is enabled
-        if (DeoVrDeeplinkPlugin.Instance!.Configuration.EnableIpRestriction)
-        {
-            // Get client IP address
-            var clientIp = HttpContext.Connection.RemoteIpAddress;
-
-            if (clientIp == null)
-            {
-                _logger.LogWarning("Unable to determine client IP address");
-                return Forbid();
-            }
-
-            // Check if the client IP is in any of the allowed ranges
-            var isAllowed =
-                DeoVrDeeplinkPlugin.Instance.Configuration.AllowedIpRanges.Any(clientIp.IsInCidrRange);
-
-            if (!isAllowed)
-            {
-                _logger.LogWarning("Unauthorized access attempt from IP: {IpAddress}", clientIp);
-                return Forbid();
-            }
-        }
-
         try
         {
             var response = await BuildVideoResponse(movieId);
@@ -249,7 +227,7 @@ public class DeoVrDeeplinkController(
     ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
     [HttpGet("proxy/{movieId}/{expiry}/{signature}/stream.mp4")]
-    [AllowAnonymous]
+    [AllowAnonymous] //fine? has performance problems otherwise
     public async Task ProxyStream(string movieId, long expiry, string signature)
     {
         // Validate movieId format

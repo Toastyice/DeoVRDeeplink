@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using DeoVRDeeplink.Model;
+using DeoVRDeeplink.Utilities;
 
 namespace DeoVRDeeplink.Api;
 
@@ -46,6 +47,7 @@ public class DeoVrController : ControllerBase
     /// </summary>
     [HttpGet]
     [Produces(MediaTypeNames.Application.Json)]
+    [IpWhitelist]
     public IActionResult GetScenes()
     {
         try

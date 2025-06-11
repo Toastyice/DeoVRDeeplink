@@ -1,4 +1,5 @@
-﻿using MediaBrowser.Common.Configuration;
+﻿using DeoVRDeeplink.Utilities;
+using MediaBrowser.Common.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace DeoVRDeeplink.Api;
 
 [ApiController]
-[Route("deovr/timeline")]
+[Route("deovr")]
 public class TimelineController : ControllerBase
 {
     private readonly IApplicationPaths _appPaths;
@@ -18,8 +19,8 @@ public class TimelineController : ControllerBase
         _appPaths = appPaths;
     }
 
-    [HttpGet("{movieId}/4096_timelinePreview341x195.jpg")]
-    [AllowAnonymous] //fine?
+    [HttpGet("timeline/{movieId}/4096_timelinePreview341x195.jpg")]
+    [IpWhitelist]
     public async Task<IActionResult> GetTimelineImage(string movieId)
     {
         try
