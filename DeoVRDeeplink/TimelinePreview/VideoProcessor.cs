@@ -89,8 +89,7 @@ public class VideoProcessor
         return "fps=1/" + ((double)videoItem.RunTimeTicks.Value / TimeSpan.TicksPerSecond / 252.0)
             .ToString(CultureInfo.InvariantCulture);
     }
-
-    // 
+    
     private static string GetFFCropFilter(BaseItem item)
     {
         if (item is not Video videoItem) return ",crop=iw/2:ih:0:0"; //TODO This should crash
