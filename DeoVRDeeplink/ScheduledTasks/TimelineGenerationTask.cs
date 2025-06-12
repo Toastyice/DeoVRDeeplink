@@ -89,8 +89,7 @@ namespace DeoVRDeeplink.ScheduledTasks;
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-
-                    // Create VideoProcessor manually - just like the working example
+                    
                     await new VideoProcessor(
                         _loggerFactory,
                         _loggerFactory.CreateLogger<VideoProcessor>(),

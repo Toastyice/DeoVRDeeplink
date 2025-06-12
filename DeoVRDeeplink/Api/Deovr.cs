@@ -1,9 +1,7 @@
 ﻿using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.MediaEncoding;
 using Microsoft.AspNetCore.Http;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;

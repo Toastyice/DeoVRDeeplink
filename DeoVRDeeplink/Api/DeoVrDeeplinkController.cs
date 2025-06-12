@@ -40,11 +40,11 @@ public class DeoVrDeeplinkController(
     [HttpGet("json/{movieId}/response.json")]
     [Produces(MediaTypeNames.Application.Json)]
     [IpWhitelist]
-    public async Task<IActionResult> GetDeoVrResponse(string movieId)
+    public IActionResult GetDeoVrResponse(string movieId)
     {
         try
         {
-            var response = await BuildVideoResponse(movieId);
+            var response = BuildVideoResponse(movieId);
             return response is null ? NotFound() : Ok(response);
         }
         catch (Exception ex)
@@ -64,7 +64,7 @@ public class DeoVrDeeplinkController(
         return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
     }
 
-    private async Task<DeoVrVideoResponse?> BuildVideoResponse(string movieId)
+    private DeoVrVideoResponse? BuildVideoResponse(string movieId)
     {
         if (!Guid.TryParse(movieId, out var itemId))
             return null;
