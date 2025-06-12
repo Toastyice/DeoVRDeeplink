@@ -6,6 +6,7 @@
         "description": "Adds a Play in DeoVR button.",
         "owner": "toastyice",
         "category": "General",
+        "imageUrl": "https://deovr.com/s/images/content/deovr.png?v=1.1",
         "versions": [
             {
                 "version": "1.0.0.0",
