@@ -91,6 +91,14 @@
                                       class="emby-textarea" rows="4" style="font-family: monospace; resize: vertical;"
                                       placeholder="Movies&#10;TV Shows&#10;Home Videos"></textarea>
                         </div>
+
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="TimelineRemoveDistortion" name="TimelineRemoveDistortion" type="checkbox" is="emby-checkbox" />
+                                <span>Remove Distortion from Timeline Images</span>
+                            </label>
+                            <div class="fieldDescription">Apply distortion correction to timeline images for VR content</div>
+                        </div>
                     </div>
                 </div>
 
@@ -142,6 +150,10 @@
                     var timelineLibraries = (config.TimelineIncludedLibrary || []).join('\n');
                     document.querySelector('#TimelineIncludedLibrary').value = timelineLibraries;
 
+                    // Set TimelineRemoveDistortion checkbox
+                    var timelineRemoveDistortion = config.TimelineRemoveDistortion || false;
+                    document.querySelector('#TimelineRemoveDistortion').checked = timelineRemoveDistortion;
+
                     console.log("Loaded config:", config);
                     Dashboard.hideLoadingMsg();
                 });
@@ -182,6 +194,7 @@
                     // Get Timeline settings
                     var enableTimeline = document.querySelector('#EnableTimeline').checked;
                     var timelineLibrariesText = document.querySelector('#TimelineIncludedLibrary').value;
+                    var timelineRemoveDistortion = document.querySelector('#TimelineRemoveDistortion').checked;
 
                     if (enableTimeline) {
                         config.TimelineIncludedLibrary = timelineLibrariesText
@@ -191,6 +204,9 @@
                     } else {
                         config.TimelineIncludedLibrary = [];
                     }
+
+                    // Set TimelineRemoveDistortion value
+                    config.TimelineRemoveDistortion = timelineRemoveDistortion;
 
                     console.log("Saving config:", config);
 
