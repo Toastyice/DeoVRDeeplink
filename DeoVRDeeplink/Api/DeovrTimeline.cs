@@ -1,6 +1,5 @@
 ﻿using DeoVRDeeplink.Utilities;
 using MediaBrowser.Common.Configuration;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 

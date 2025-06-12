@@ -6,6 +6,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using Microsoft.Extensions.Logging;
 
@@ -44,12 +45,9 @@ public class VideoProcessor
 
     public async Task Run(BaseItem item, CancellationToken cancellationToken)
     {
-        var interval = CalculateIntervalForItem(item); // Dynamic calculation
+        if (!EnableForItem(item)) return;
         
-        if (!EnableForItem(item, _fileSystem, interval)) return;
-        
-        var mediaSources = ((IHasMediaSources)item).GetMediaSources(false)
-            .ToList();
+        var mediaSources = ((IHasMediaSources)item).GetMediaSources(false).ToList();
         
         foreach (var mediaSource in mediaSources.Where(mediaSource => item.Id.Equals(Guid.Parse(mediaSource.Id))))
         {
@@ -70,7 +68,7 @@ public class VideoProcessor
             // Check if timeline already exists and is up to date
             if (IsTimelineUpToDate(outputPath, mediaSource.Path))
             {
-                _logger.LogDebug($"Timeline image already exists and is up to date for {item.Name}");
+                _logger.LogDebug("Timeline image already exists and is up to date for {ItemName}", item.Name);
                 return;
             }
             
@@ -84,42 +82,52 @@ public class VideoProcessor
             throw;
         }
     }
-
-    private int CalculateIntervalForItem(BaseItem item)
+    
+    private static string GetFFFpsForFilter(BaseItem item)
     {
-        if (item is not Video { RunTimeTicks: not null } videoItem)
-            return 100_000_000; // Default 10 seconds in ticks
-        // Calculate interval to get approximately 252 frames from the entire video
-        var totalDurationTicks = videoItem.RunTimeTicks.Value;
-        var intervalTicks = totalDurationTicks / 252;
-            
-        // Ensure minimum 10 second interval
-        const long minInterval = 10 * TimeSpan.TicksPerSecond; // 10 seconds in ticks
-            
-        return (int)Math.Max(intervalTicks, minInterval);
+        if (item is not Video { RunTimeTicks: not null } videoItem) return "0.0";
+        return "fps=1/" + ((double)videoItem.RunTimeTicks.Value / TimeSpan.TicksPerSecond / 252.0)
+            .ToString(CultureInfo.InvariantCulture);
+    }
+    
+    private static string GetFFCropFilter(BaseItem item)
+    {
+        if (item is not Video videoItem) return ",crop=iw/2:ih:0:0"; //TODO This should crash
+        return videoItem.Video3DFormat switch
+        {
+            Video3DFormat.FullSideBySide => ",crop=iw/2:ih:0:0",        // Crop left half
+            Video3DFormat.FullTopAndBottom => ",crop=iw:ih/2:0:0",      // Crop top half
+            Video3DFormat.HalfSideBySide => ",crop=iw/2:ih:0:0",        // Crop left half
+            Video3DFormat.HalfTopAndBottom => ",crop=iw:ih/2:0:0",      // Crop top half
+            _ => ",crop=iw/2:ih:0:0"                                    //TODO Default case should assume flat
+        };
     }
 
-
-    private static double GetFFmpegFpsForFilter(BaseItem item)
+    private string GetFFDistortionFilter(BaseItem item)
     {
-        if (item is not Video { RunTimeTicks: not null } videoItem) return 0.0;
-        return (double)videoItem.RunTimeTicks.Value / TimeSpan.TicksPerSecond / 252.0;
+        if (!_config.TimelineRemoveDistortion) return "";
+        if (item is not Video videoItem) return ""; //TODO This should crash
+        return videoItem.Video3DFormat switch
+        {
+            Video3DFormat.FullSideBySide =>   ",v360=e:flat:ih_fov=190:iv_fov=90", //Untested
+            Video3DFormat.FullTopAndBottom => ",v360=e:flat:ih_fov=190:iv_fov=90",     
+            Video3DFormat.HalfSideBySide =>   ",v360=hequirect:flat:h_fov=120:v_fov=110",
+            Video3DFormat.HalfTopAndBottom => ",v360=hequirect:flat:h_fov=120:v_fov=90", //Untested
+            _ => "" //TODO Default case should assume flat and not apply this filter
+        };
     }
-
+    
     private List<string> GetFFmpegArgumentsForTimeline(BaseItem item, MediaSourceInfo mediaSource, string outputPath)
     {
-        var fpsValue = GetFFmpegFpsForFilter(item); // This is your calculated value, not actual FPS
-        var fpsString = fpsValue.ToString(CultureInfo.InvariantCulture);
-
-        var args = new List<string>
-        {
+        return
+        [
             "-i", $"\"{mediaSource.Path}\"",
-            "-vf", $"\"fps=1/{fpsString},crop=iw/2:ih:0:0,scale=341:195,tile=12x21:margin=0:padding=0\"",
+            "-vf",
+            $"\"{GetFFFpsForFilter(item)}{GetFFCropFilter(item)}{GetFFDistortionFilter(item)},scale=341:195,tile=12x21:margin=0:padding=0\"",
             "-q:v", "1",
             "-y",
             $"\"{outputPath}\""
-        };
-        return args;
+        ];
     }
 
     private string GetTimelineOutputPath(BaseItem item)
@@ -193,7 +201,7 @@ public class VideoProcessor
             if (process.ExitCode != 0)
             {
                 var error = errorBuilder.ToString();
-                _logger.LogError($"FFmpeg failed with exit code {process.ExitCode}: {error}");
+                _logger.LogError("FFmpeg failed with exit code {ProcessExitCode}: {Error}", process.ExitCode, error);
                 throw new Exception($"FFmpeg process failed with exit code {process.ExitCode}");
             }
 
@@ -206,7 +214,7 @@ public class VideoProcessor
         }
     }
     
-    private static bool EnableForItem(BaseItem item, IFileSystem fileSystem, int interval)
+    private static bool EnableForItem(BaseItem item)
     {
         // Check if item is a video
         if (item is not Video) return false;
