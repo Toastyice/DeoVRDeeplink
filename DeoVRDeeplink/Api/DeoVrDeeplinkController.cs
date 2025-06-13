@@ -4,6 +4,7 @@ using System.Text;
 using DeoVRDeeplink.Configuration;
 using DeoVRDeeplink.Model;
 using DeoVRDeeplink.Utilities;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
@@ -35,23 +36,78 @@ public class DeoVrDeeplinkController(
     private readonly IItemRepository _itemRepository = itemRepository;
 
     /// <summary>
-    ///     Returns DeoVR compatible JSON for a movie.
+    ///     Returns DeoVR compatible JSON for a movie or Person.
     /// </summary>
-    [HttpGet("json/{movieId}/response.json")]
+    [HttpGet("json/{Id}/response.json")]
     [Produces(MediaTypeNames.Application.Json)]
     [IpWhitelist]
-    public IActionResult GetDeoVrResponse(string movieId)
+    public IActionResult GetDeoVrResponse(string Id)
     {
-        try
+        
+        if (!Guid.TryParse(Id, out var itemId))
+            return NotFound();
+
+        var item = _libraryManager.GetItemById(itemId);
+        switch (item)
         {
-            var response = BuildVideoResponse(movieId);
-            return response is null ? NotFound() : Ok(response);
+            case Video video:
+                try
+                {
+                    var response = BuildVideoResponse(video);
+                    return response is null ? NotFound() : Ok(response);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error generating DeoVR response for movie ID: {Id}", Id);
+                    return StatusCode(StatusCodes.Status500InternalServerError, "Error generating DeoVR response.");
+                }
+            case Person person:
+                try
+                {
+                    var response = BuildActorResponse(person);
+                    return response is null ? NotFound() : Ok(response);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error generating DeoVR response for Actor ID: {Id}", Id);
+                    return StatusCode(StatusCodes.Status500InternalServerError, "Error generating DeoVR response.");
+                }
+            default:
+                return NotFound();
         }
-        catch (Exception ex)
+    }
+
+    private DeoVrScenesResponse? BuildActorResponse(Person person)
+    {
+        var query = new InternalItemsQuery
         {
-            _logger.LogError(ex, "Error generating DeoVR response for movie ID: {MovieId}", movieId);
-            return StatusCode(StatusCodes.Status500InternalServerError, "Error generating DeoVR response.");
-        }
+            PersonIds = [person.Id],
+            IncludeItemTypes = [BaseItemKind.Movie],
+            Recursive = true,
+            IsFolder = false
+        };
+        var baseUrl = GetServerUrl();
+        var response = new DeoVrScenesResponse();
+        var videoList = _libraryManager
+            .GetItemList(query)
+            .OfType<Video>()
+            .Select(video => new DeoVrVideoItem
+        {
+            Title = video.Name,
+            VideoLength = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond),
+            VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
+            ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop"
+        }).ToList();
+        var scene = new DeoVrScene
+        {
+            Name = person.Name,
+            List = videoList
+        };
+
+        response.Scenes.Add(scene);
+        _logger.LogInformation("Added {Count} videos from library: {Person}", 
+            videoList.Count, person.Name);
+        return response;
     }
 
     /// <summary>
@@ -64,15 +120,8 @@ public class DeoVrDeeplinkController(
         return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
     }
 
-    private DeoVrVideoResponse? BuildVideoResponse(string movieId)
+    private DeoVrVideoResponse? BuildVideoResponse(Video video)
     {
-        if (!Guid.TryParse(movieId, out var itemId))
-            return null;
-
-        var item = _libraryManager.GetItemById(itemId);
-        if (item is not Video video)
-            return null;
-
         // Try to extract video stream info
         var stream = _mediaSourceManager.GetStaticMediaSources(video, false)
             .FirstOrDefault()?.MediaStreams
@@ -87,21 +136,21 @@ public class DeoVrDeeplinkController(
 
         var baseUrl = GetServerUrl();
 
-        var proxySecret = DeoVrDeeplinkPlugin.Instance?.Configuration.ProxySecret ?? "default-secret";
+        var proxySecret = DeoVrDeeplinkPlugin.Instance!.Configuration.ProxySecret;
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
-        var tokenData = $"{movieId}:{expiry}";
+        var tokenData = $"{video.Id}:{expiry}";
         var sig = SignUrl(tokenData, proxySecret);
 
         var response = new DeoVrVideoResponse
         {
-            Id = itemId.GetHashCode(),
+            Id = video.Id.GetHashCode(),
             Title = video.Name ?? "Unknown",
             Is3D = true,
             VideoLength = runtimeSeconds,
             ScreenType = screenType,
             StereoMode = stereoMode,
-            ThumbnailUrl = $"{baseUrl}/Items/{itemId}/Images/Backdrop",
-            TimelinePreview = $"{baseUrl}/deovr/timeline/{itemId}/4096_timelinePreview341x195.jpg",
+            ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop",
+            TimelinePreview = $"{baseUrl}/deovr/timeline/{video.Id}/4096_timelinePreview341x195.jpg",
             Encodings =
             [
                 new DeoVrEncoding
@@ -112,7 +161,7 @@ public class DeoVrDeeplinkController(
                         new DeoVrVideoSource
                         {
                             Resolution = resolution,
-                            Url = $"{baseUrl}/deovr/proxy/{movieId}/{expiry}/{sig}/stream.mp4"
+                            Url = $"{baseUrl}/deovr/proxy/{video.Id}/{expiry}/{sig}/stream.mp4"
                         }
                     ]
                 }
