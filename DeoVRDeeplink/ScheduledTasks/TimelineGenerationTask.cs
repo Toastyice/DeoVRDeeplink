@@ -72,9 +72,9 @@ namespace DeoVRDeeplink.ScheduledTasks;
             var includedLibraryNames = DeoVrDeeplinkPlugin.Instance!.Configuration.TimelineIncludedLibrary;
             if (includedLibraryNames.Length > 0)
             {
-                var allLibraries = GetAllLibraries().ToArray();
-                var librariesToProcess = allLibraries.Where(lib => 
-                    includedLibraryNames.Contains(lib.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
+                var librariesToProcess = GetAllLibraries()
+                    .Where(lib => includedLibraryNames.Contains(lib.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToArray();
 
                 foreach (var library in librariesToProcess)
                 {
