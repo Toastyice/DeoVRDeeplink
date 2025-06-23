@@ -28,7 +28,7 @@ public class TimelineController : ControllerBase
             if (!Guid.TryParse(movieId, out _)) return BadRequest("Invalid movie ID");
 
             // Build the file path
-            var filePath = Path.Combine(_appPaths.CachePath, "deovr-timeline", $"{movieId}.jpg");
+            var filePath = Path.Combine(_appPaths.DataPath, "deovr-timeline", $"{movieId}.jpg");
 
             // Check if file exists
             if (!System.IO.File.Exists(filePath))

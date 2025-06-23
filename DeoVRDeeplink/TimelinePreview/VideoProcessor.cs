@@ -133,7 +133,7 @@ public class VideoProcessor
     private string GetTimelineOutputPath(BaseItem item)
     {
         var fileName = $"{item.Id}.jpg";
-        var timelineCachePath = Path.Combine(_appPaths.ConfigurationDirectoryPath , "deovr-timeline");
+        var timelineCachePath = Path.Combine(_appPaths.DataPath , "deovr-timeline");
         
         Directory.CreateDirectory(timelineCachePath);
         
