@@ -102,20 +102,6 @@ public class VideoProcessor
             _ => ",crop=iw/2:ih:0:0"                                    //TODO Default case should assume flat
         };
     }
-
-    private string GetFFDistortionFilter(BaseItem item)
-    {
-        if (!_config.TimelineRemoveDistortion) return "";
-        if (item is not Video videoItem) return ""; //TODO This should crash
-        return videoItem.Video3DFormat switch
-        {
-            Video3DFormat.FullSideBySide =>   ",v360=e:flat:ih_fov=190:iv_fov=90", //Untested
-            Video3DFormat.FullTopAndBottom => ",v360=e:flat:ih_fov=190:iv_fov=90",     
-            Video3DFormat.HalfSideBySide =>   ",v360=hequirect:flat:h_fov=120:v_fov=110",
-            Video3DFormat.HalfTopAndBottom => ",v360=hequirect:flat:h_fov=120:v_fov=90", //Untested
-            _ => "" //TODO Default case should assume flat and not apply this filter
-        };
-    }
     
     private List<string> GetFFmpegArgumentsForTimeline(BaseItem item, MediaSourceInfo mediaSource, string outputPath)
     {
@@ -123,7 +109,7 @@ public class VideoProcessor
         [
             "-i", $"\"{mediaSource.Path}\"",
             "-vf",
-            $"\"{GetFFFpsForFilter(item)}{GetFFCropFilter(item)}{GetFFDistortionFilter(item)},scale=341:195,tile=12x21:margin=0:padding=0\"",
+            $"\"{GetFFFpsForFilter(item)}{GetFFCropFilter(item)},scale=341:195,tile=12x21:margin=0:padding=0\"",
             "-q:v", "1",
             "-y",
             $"\"{outputPath}\""

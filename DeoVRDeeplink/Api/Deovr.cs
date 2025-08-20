@@ -1,4 +1,5 @@
 ﻿using System.Net.Mime;
+using DeoVRDeeplink.Configuration;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.Library;
@@ -7,6 +8,7 @@ using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using DeoVRDeeplink.Model;
 using DeoVRDeeplink.Utilities;
+using MediaBrowser.Controller.Configuration;
 
 namespace DeoVRDeeplink.Api;
 
@@ -17,15 +19,18 @@ public class DeoVrController : ControllerBase
     private readonly ILogger<DeoVrController> _logger;
     private readonly ILibraryManager _libraryManager;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IServerConfigurationManager _config;
 
     public DeoVrController(
         ILogger<DeoVrController> logger,
         ILibraryManager libraryManager,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IServerConfigurationManager config)
     {
         _logger = logger;
         _libraryManager = libraryManager;
         _httpContextAccessor = httpContextAccessor;
+        _config = config;
     }
 
     /// <summary>
@@ -39,7 +44,8 @@ public class DeoVrController : ControllerBase
         try
         {
             var baseUrl = GetServerUrl();
-            var libraries = GetAllLibraries().ToArray();
+            var configLibraries = DeoVrDeeplinkPlugin.Instance!.Configuration.Libraries;
+            var libraries = GetAllEnabledLibraries(configLibraries).ToArray();
             
             if (libraries.Length == 0)
             {
@@ -77,6 +83,25 @@ public class DeoVrController : ControllerBase
 
                 _logger.LogInformation("Added {Count} videos from library: {LibraryName}", 
                     videoList.Count, library.Name);
+                
+                // Check if this library has the random flag enabled
+                if (configLibraries.FirstOrDefault(config => config.Id == library.Id) is { Enabled: true, Random: true })
+                {
+                    // Create a randomized duplicate of the video list
+                    var random = new Random();
+                    var randomizedVideoList = videoList.OrderBy(x => random.Next()).ToList();
+
+                    var randomScene = new DeoVrScene
+                    {
+                        Name = $"{library.Name} - Random",
+                        List = randomizedVideoList
+                    };
+
+                    response.Scenes.Add(randomScene);
+
+                    _logger.LogInformation("Added randomized scene with {Count} videos for library: {LibraryName}", 
+                        randomizedVideoList.Count, library.Name);
+                }
             }
 
             var totalVideos = response.Scenes.Sum(scene => scene.List.Count);
@@ -92,13 +117,19 @@ public class DeoVrController : ControllerBase
         }
     }
 
-    private IEnumerable<Folder> GetAllLibraries()
+    private IEnumerable<Folder> GetAllEnabledLibraries(IList<LibraryConfiguration> configLibraries)
     {
-        return _libraryManager.GetUserRootFolder()
+        var allLibraries = _libraryManager.GetUserRootFolder()
             .Children
             .OfType<CollectionFolder>();
-    }
 
+        var enabledLibraryIds = configLibraries
+            .Where(lib => lib.Enabled)
+            .Select(lib => lib.Id);
+
+        return allLibraries.Where(lib => enabledLibraryIds.Contains(lib.Id));
+    }
+    
     private IEnumerable<Video> GetVideosFromLibrary(Folder library)
     {
         var query = new InternalItemsQuery

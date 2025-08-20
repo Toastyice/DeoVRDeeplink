@@ -3,6 +3,33 @@
 <head>
     <meta charset="utf-8">
     <title>DeoVR Deeplink</title>
+    <style>
+        /* Align library controls in a clean row */
+        .listItemBody {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .lib-options {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .listItem {
+            padding: 12px;
+            border-bottom: 1px solid var(--theme-border-color, #444);
+        }
+
+        .listItem h3 {
+            margin: 0 0 6px 0;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
 <div id="DeoVRDeeplinkConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox,emby-collapse,emby-textarea">
@@ -16,26 +43,6 @@
                         <label class="inputLabel inputLabelUnfocused" for="ProxySecret">Proxy Signing Secret</label>
                         <input id="ProxySecret" name="ProxySecret" type="text" is="emby-input" required />
                         <div class="fieldDescription">Do not share. Used for signing video proxy links.</div>
-                    </div>
-
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="FallbackProjection">Fallback Projection Type</label>
-                        <select is="emby-select" id="FallbackProjection" name="FallbackProjection" class="emby-select-withcolor emby-select">
-                            <option value="None">None</option>
-                            <option value="Projection180">180-degree</option>
-                            <option value="Projection360">360-degree</option>
-                        </select>
-                        <div class="fieldDescription">Fallback specific projection type for VR content</div>
-                    </div>
-
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="FallbackStereoMode">Fallback Stereo Mode</label>
-                        <select is="emby-select" id="FallbackStereoMode" name="FallbackStereoMode" class="emby-select-withcolor emby-select">
-                            <option value="None">None</option>
-                            <option value="SideBySide">Side by Side</option>
-                            <option value="TopBottom">Top Bottom</option>
-                        </select>
-                        <div class="fieldDescription">Fallback specific stereo mode for VR content</div>
                     </div>
                 </div>
 
@@ -67,39 +74,10 @@
                     </div>
                 </div>
 
-                <!-- Timeline Settings -->
+                <!-- Library Settings -->
                 <div class="verticalSection">
-                    <h2 class="sectionTitle">Timeline Settings</h2>
-
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="EnableTimeline" name="EnableTimeline" type="checkbox" is="emby-checkbox" />
-                            <span>Enable Timeline Images</span>
-                        </label>
-                        <div class="fieldDescription">Generate timeline images for supported libraries</div>
-                    </div>
-
-                    <div id="timelineLibrariesContainer" class="inputContainer hide">
-                        <div class="inputContainer">
-                            <label class="inputLabel inputLabelUnfocused" for="TimelineIncludedLibrary">Library Names</label>
-                            <div class="fieldDescription" style="margin-bottom: 0.5em;">
-                                Enter one library name per line:<br>
-                                • Use exact library names as they appear in Jellyfin<br>
-                                • Case-sensitive matching<br>
-                            </div>
-                            <textarea id="TimelineIncludedLibrary" name="TimelineIncludedLibrary" is="emby-textarea"
-                                      class="emby-textarea" rows="4" style="font-family: monospace; resize: vertical;"
-                                      placeholder="Movies&#10;TV Shows&#10;Home Videos"></textarea>
-                        </div>
-
-                        <div class="checkboxContainer checkboxContainer-withDescription">
-                            <label class="emby-checkbox-label">
-                                <input id="TimelineRemoveDistortion" name="TimelineRemoveDistortion" type="checkbox" is="emby-checkbox" />
-                                <span>Remove Distortion from Timeline Images</span>
-                            </label>
-                            <div class="fieldDescription">Apply distortion correction to timeline images for VR content (Experimental)</div>
-                        </div>
-                    </div>
+                    <h2 class="sectionTitle">Library Settings</h2>
+                    <div id="librarySettingsList" class="paperList"></div>
                 </div>
 
                 <div>
@@ -116,107 +94,156 @@
         };
 
         document.querySelector('#DeoVRDeeplinkConfigPage')
-            .addEventListener('pageshow', function() {
+            .addEventListener('pageshow', function () {
                 Dashboard.showLoadingMsg();
+
                 ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
+                    // Load top-level config
                     document.querySelector('#ProxySecret').value = config.ProxySecret || '';
+                    document.querySelector('#EnableIpRestriction').checked = config.EnableIpRestriction || false;
+                    document.querySelector('#ipRangesContainer').classList.toggle('hide', !config.EnableIpRestriction);
+                    document.querySelector('#AllowedIpRanges').value = (config.AllowedIpRanges || []).join('\n');
 
-                    // Use the enum string values instead of numeric values
-                    var projectionValue = config.FallbackProjection || 'None';
-                    var stereoValue = config.FallbackStereoMode || 'None';
+                    // Load library-specific configs
+                    ApiClient.getUserViews().then(function (result) {
+                        var list = document.getElementById("librarySettingsList");
+                        list.innerHTML = '';
 
-                    document.querySelector('#FallbackProjection').value = projectionValue;
-                    document.querySelector('#FallbackStereoMode').value = stereoValue;
+                        var movieLibraries = result.Items.filter(function (v) { return v.CollectionType === 'movies'; });
 
-                    // Set IP restriction options
-                    var enableIpRestriction = config.EnableIpRestriction || false;
-                    document.querySelector('#EnableIpRestriction').checked = enableIpRestriction;
+                        movieLibraries.forEach(function (view) {
+                            var cfg = (config.Libraries || []).find(function (lib) { return lib.Id === view.Id; }) || {};
 
-                    // Show/hide IP ranges container based on checkbox
-                    document.querySelector('#ipRangesContainer').classList.toggle('hide', !enableIpRestriction);
+                            var item = document.createElement('div');
+                            item.className = 'listItem';
 
-                    // Join the IP ranges with newlines for display in textarea
-                    var ipRanges = (config.AllowedIpRanges || []).join('\n');
-                    document.querySelector('#AllowedIpRanges').value = ipRanges;
+                            // Title
+                            var titleWrap = document.createElement('div');
+                            var h3 = document.createElement('h3');
+                            h3.textContent = view.Name;
+                            titleWrap.appendChild(h3);
+                            item.appendChild(titleWrap);
 
-                    // Set Timeline settings
-                    var hasTimelineLibraries = config.TimelineIncludedLibrary && config.TimelineIncludedLibrary.length > 0;
-                    document.querySelector('#EnableTimeline').checked = hasTimelineLibraries;
+                            // Controls
+                            var controls = document.createElement('div');
+                            controls.className = 'listItemBody';
 
-                    // Show/hide Timeline libraries container based on checkbox
-                    document.querySelector('#timelineLibrariesContainer').classList.toggle('hide', !hasTimelineLibraries);
+                            // Enabled checkbox
+                            var enabledChecked = cfg.Enabled ? ' checked' : '';
+                            var enabledHtml =
+                                '<label class="emby-checkbox-label">' +
+                                '<input type="checkbox" class="lib-enabled" data-id="' + view.Id + '" is="emby-checkbox"' + enabledChecked + '>' +
+                                '<span>Enabled</span>' +
+                                '</label>';
+                            controls.innerHTML = enabledHtml;
 
-                    // Join the timeline libraries with newlines for display in textarea
-                    var timelineLibraries = (config.TimelineIncludedLibrary || []).join('\n');
-                    document.querySelector('#TimelineIncludedLibrary').value = timelineLibraries;
+                            // Options wrapper (hidden if not enabled)
+                            var options = document.createElement('div');
+                            options.className = 'lib-options';
+                            if (!cfg.Enabled) options.style.display = 'none';
 
-                    // Set TimelineRemoveDistortion checkbox
-                    var timelineRemoveDistortion = config.TimelineRemoveDistortion || false;
-                    document.querySelector('#TimelineRemoveDistortion').checked = timelineRemoveDistortion;
+                            // Random checkbox
+                            var randomChecked = cfg.Random ? ' checked' : '';
+                            options.innerHTML +=
+                                '<label class="emby-checkbox-label">' +
+                                '<input type="checkbox" class="lib-random" data-id="' + view.Id + '" is="emby-checkbox"' + randomChecked + '>' +
+                                '<span>Random</span>' +
+                                '</label>';
 
-                    console.log("Loaded config:", config);
+                            // Timeline Images checkbox
+                            var timelineChecked = cfg.TimelineImages ? ' checked' : '';
+                            options.innerHTML +=
+                                '<label class="emby-checkbox-label">' +
+                                '<input type="checkbox" class="lib-timeline" data-id="' + view.Id + '" is="emby-checkbox"' + timelineChecked + '>' +
+                                '<span>Timeline Images</span>' +
+                                '</label>';
+
+                            // Projection select
+                            options.innerHTML +=
+                                '<label>' +
+                                'Projection: ' +
+                                '<select class="lib-projection" data-id="' + view.Id + '" is="emby-select">' +
+                                '<option value="None">None</option>' +
+                                '<option value="Projection180">180-degree</option>' +
+                                '<option value="Projection360">360-degree</option>' +
+                                '</select>' +
+                                '</label>';
+
+                            // Stereo select
+                            options.innerHTML +=
+                                '<label>' +
+                                'Stereo Mode: ' +
+                                '<select class="lib-stereo" data-id="' + view.Id + '" is="emby-select">' +
+                                '<option value="None">None</option>' +
+                                '<option value="SideBySide">Side by Side</option>' +
+                                '<option value="TopBottom">Top Bottom</option>' +
+                                '</select>' +
+                                '</label>';
+
+                            controls.appendChild(options);
+                            item.appendChild(controls);
+                            list.appendChild(item);
+
+                            // Set dropdowns
+                            item.querySelector('.lib-projection').value = cfg.FallbackProjection || 'None';
+                            item.querySelector('.lib-stereo').value = cfg.FallbackStereoMode || 'None';
+
+                            // Add toggle logic
+                            var enabledBox = item.querySelector('.lib-enabled');
+                            enabledBox.addEventListener('change', function () {
+                                options.style.display = enabledBox.checked ? '' : 'none';
+                            });
+                        });
+                    }).catch(console.error);
+
                     Dashboard.hideLoadingMsg();
                 });
 
-                // Set up event listener for the IP restriction checkbox
-                document.querySelector('#EnableIpRestriction').addEventListener('change', function(e) {
+                document.querySelector('#EnableIpRestriction').addEventListener('change', function (e) {
                     document.querySelector('#ipRangesContainer').classList.toggle('hide', !e.target.checked);
-                });
-
-                // Set up event listener for the Timeline checkbox
-                document.querySelector('#EnableTimeline').addEventListener('change', function(e) {
-                    document.querySelector('#timelineLibrariesContainer').classList.toggle('hide', !e.target.checked);
                 });
             });
 
-        document.querySelector('#DeoVRDeeplinkConfigForm')
-            .addEventListener('submit', function(e) {
-                e.preventDefault();
+        document.querySelector('#DeoVRDeeplinkConfigForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            Dashboard.showLoadingMsg();
 
-                Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
-                    config.ProxySecret = document.querySelector('#ProxySecret').value;
+            ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
+                config.ProxySecret = document.querySelector('#ProxySecret').value;
+                config.EnableIpRestriction = document.querySelector('#EnableIpRestriction').checked;
+                config.AllowedIpRanges = document.querySelector('#AllowedIpRanges').value.split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l; });
 
-                    // Use string enum values directly
-                    config.FallbackProjection = document.querySelector('#FallbackProjection').value;
-                    config.FallbackStereoMode = document.querySelector('#FallbackStereoMode').value;
+                // Collect per-library configs
+                var libs = [];
+                var enabledBoxes = document.querySelectorAll('.lib-enabled');
 
-                    // Get IP restriction settings
-                    config.EnableIpRestriction = document.querySelector('#EnableIpRestriction').checked;
+                enabledBoxes.forEach(function (enabledCheckbox) {
+                    var id = enabledCheckbox.dataset.id;
 
-                    // Split the textarea content by newlines and filter empty lines
-                    var ipRangesText = document.querySelector('#AllowedIpRanges').value;
-                    config.AllowedIpRanges = ipRangesText
-                        .split('\n')
-                        .map(function(line) { return line.trim(); })
-                        .filter(function(line) { return line.length > 0; });
+                    var randomCheckbox = document.querySelector('.lib-random[data-id="' + id + '"]');
+                    var timelineCheckbox = document.querySelector('.lib-timeline[data-id="' + id + '"]');
+                    var projectionSelect = document.querySelector('.lib-projection[data-id="' + id + '"]');
+                    var stereoSelect = document.querySelector('.lib-stereo[data-id="' + id + '"]');
 
-                    // Get Timeline settings
-                    var enableTimeline = document.querySelector('#EnableTimeline').checked;
-                    var timelineLibrariesText = document.querySelector('#TimelineIncludedLibrary').value;
-                    var timelineRemoveDistortion = document.querySelector('#TimelineRemoveDistortion').checked;
-
-                    if (enableTimeline) {
-                        config.TimelineIncludedLibrary = timelineLibrariesText
-                            .split('\n')
-                            .map(function(line) { return line.trim(); })
-                            .filter(function(line) { return line.length > 0; });
-                    } else {
-                        config.TimelineIncludedLibrary = [];
-                    }
-
-                    // Set TimelineRemoveDistortion value
-                    config.TimelineRemoveDistortion = timelineRemoveDistortion;
-
-                    console.log("Saving config:", config);
-
-                    ApiClient.updatePluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId, config).then(function (result) {
-                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    libs.push({
+                        Id: id,
+                        Name: '',
+                        Enabled: enabledCheckbox.checked,
+                        Random: randomCheckbox ? randomCheckbox.checked : false,
+                        TimelineImages: timelineCheckbox ? timelineCheckbox.checked : false,
+                        FallbackProjection: projectionSelect ? projectionSelect.value : 'None',
+                        FallbackStereoMode: stereoSelect ? stereoSelect.value : 'None'
                     });
                 });
 
-                return false;
+                config.Libraries = libs;
+
+                ApiClient.updatePluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId, config)
+                    .then(Dashboard.processPluginConfigurationUpdateResult);
             });
+
+            return false;
+        });
     </script>
 </div>
 </body>

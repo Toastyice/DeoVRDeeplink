@@ -122,20 +122,23 @@ public class DeoVrDeeplinkController(
 
     private DeoVrVideoResponse? BuildVideoResponse(Video video)
     {
-        // Try to extract video stream info
+        // Get the media stream info
         var stream = _mediaSourceManager.GetStaticMediaSources(video, false)
             .FirstOrDefault()?.MediaStreams
             .FirstOrDefault(s => s.Type == MediaStreamType.Video);
 
         var resolution = stream?.Height ?? 2160;
         var codec = stream?.Codec ?? "h264";
-
         var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond);
 
-        var (stereoMode, screenType) = Get3DType(video, DeoVrDeeplinkPlugin.Instance!.Configuration);
+        // Get per-library fallback settings
+        var libConfig = GetLibraryConfigForItem(video);
+        var fallbackStereo = libConfig?.FallbackStereoMode ?? StereoMode.None;
+        var fallbackProjection = libConfig?.FallbackProjection ?? ProjectionType.None;
 
+        var (stereoMode, screenType) = Get3DType(video, fallbackStereo, fallbackProjection);
+        
         var baseUrl = GetServerUrl();
-
         var proxySecret = DeoVrDeeplinkPlugin.Instance!.Configuration.ProxySecret;
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
         var tokenData = $"{video.Id}:{expiry}";
@@ -171,6 +174,31 @@ public class DeoVrDeeplinkController(
         };
         return response;
     }
+    
+    private LibraryConfiguration? GetLibraryConfigForItem(BaseItem item)
+    {
+        var config = DeoVrDeeplinkPlugin.Instance!.Configuration;
+        var libraries = config.Libraries;
+
+        // Jellyfin gives you the containing library (CollectionFolder)
+        var collectionFolder = _libraryManager.GetCollectionFolders(item).FirstOrDefault();
+        if (collectionFolder == null)
+        {
+            _logger.LogWarning($"No collection folder found for item {item.Name} (Id: {item.Id})");
+            return null;
+        }
+
+        // Match your plugin’s configured libraries by GUID
+        var lib = libraries.FirstOrDefault(l => l.Id == collectionFolder.Id);
+        if (lib != null)
+        {
+            _logger.LogInformation($"Found library config for {collectionFolder.Name} (Id: {collectionFolder.Id})");
+            return lib;
+        }
+
+        _logger.LogWarning($"No library config found for library {collectionFolder.Name} (Id: {collectionFolder.Id})");
+        return null;
+    }
 
     /// <summary>
     ///     Retrieves chapter timestamps, in seconds, for the item.
@@ -201,7 +229,7 @@ public class DeoVrDeeplinkController(
     }
     // Returns VR display type
 
-    private static (string StereoMode, string ScreenType) Get3DType(Video video, PluginConfiguration config)
+    private static (string StereoMode, string ScreenType) Get3DType(Video video, StereoMode fallbackStereo, ProjectionType fallbackProjection)
     {
         return video.Video3DFormat switch
         {
@@ -210,13 +238,13 @@ public class DeoVrDeeplinkController(
             Video3DFormat.HalfSideBySide => ("sbs", "dome"),
             Video3DFormat.HalfTopAndBottom => ("tb", "dome"),
             _ => (
-                config.FallbackStereoMode switch
+                fallbackStereo switch
                 {
                     StereoMode.SideBySide => "sbs",
                     StereoMode.TopBottom => "tb",
                     _ => "off"
                 },
-                config.FallbackProjection switch
+                fallbackProjection switch
                 {
                     ProjectionType.Projection180 => "dome",
                     ProjectionType.Projection360 => "sphere",
@@ -225,6 +253,7 @@ public class DeoVrDeeplinkController(
             )
         };
     }
+
 
     /// <summary>
     ///     Securely proxies video streams with signed, expiring tokens.
