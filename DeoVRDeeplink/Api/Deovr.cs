@@ -7,6 +7,7 @@ using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using DeoVRDeeplink.Model;
 using DeoVRDeeplink.Utilities;
+using MediaBrowser.Controller.Configuration;
 
 namespace DeoVRDeeplink.Api;
 
@@ -17,15 +18,18 @@ public class DeoVrController : ControllerBase
     private readonly ILogger<DeoVrController> _logger;
     private readonly ILibraryManager _libraryManager;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IServerConfigurationManager _config;
 
     public DeoVrController(
         ILogger<DeoVrController> logger,
         ILibraryManager libraryManager,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IServerConfigurationManager config)
     {
         _logger = logger;
         _libraryManager = libraryManager;
         _httpContextAccessor = httpContextAccessor;
+        _config = config;
     }
 
     /// <summary>
@@ -39,7 +43,7 @@ public class DeoVrController : ControllerBase
         try
         {
             var baseUrl = GetServerUrl();
-            var libraries = GetAllLibraries().ToArray();
+            var libraries = GetAllEnabledLibraries().ToArray();
             
             if (libraries.Length == 0)
             {
@@ -92,13 +96,20 @@ public class DeoVrController : ControllerBase
         }
     }
 
-    private IEnumerable<Folder> GetAllLibraries()
+    private IEnumerable<Folder> GetAllEnabledLibraries()
     {
-        return _libraryManager.GetUserRootFolder()
+        var enabledLibraries = DeoVrDeeplinkPlugin.Instance!.Configuration.Libraries;
+        var allLibraries = _libraryManager.GetUserRootFolder()
             .Children
             .OfType<CollectionFolder>();
-    }
 
+        var enabledLibraryIds = enabledLibraries
+            .Where(lib => lib.Enabled)
+            .Select(lib => lib.Id);
+
+        return allLibraries.Where(lib => enabledLibraryIds.Contains(lib.Id));
+    }
+    
     private IEnumerable<Video> GetVideosFromLibrary(Folder library)
     {
         var query = new InternalItemsQuery

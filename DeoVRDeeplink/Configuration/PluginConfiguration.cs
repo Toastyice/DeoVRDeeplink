@@ -49,7 +49,7 @@ public enum StereoMode
 
 public class LibraryConfiguration
 {
-    public string Id { get; set; }              // Library ID
+    public Guid Id { get; set; }              // Library ID
     public string Name { get; set; }            // Optional: Library name
     public bool Enabled { get; set; }           // Enabled toggle
     public bool Random { get; set; }            // Random toggle
