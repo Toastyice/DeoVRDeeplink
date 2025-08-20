@@ -17,26 +17,6 @@
                         <input id="ProxySecret" name="ProxySecret" type="text" is="emby-input" required />
                         <div class="fieldDescription">Do not share. Used for signing video proxy links.</div>
                     </div>
-
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="FallbackProjection">Fallback Projection Type</label>
-                        <select is="emby-select" id="FallbackProjection" name="FallbackProjection" class="emby-select-withcolor emby-select">
-                            <option value="None">None</option>
-                            <option value="Projection180">180-degree</option>
-                            <option value="Projection360">360-degree</option>
-                        </select>
-                        <div class="fieldDescription">Fallback specific projection type for VR content</div>
-                    </div>
-
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="FallbackStereoMode">Fallback Stereo Mode</label>
-                        <select is="emby-select" id="FallbackStereoMode" name="FallbackStereoMode" class="emby-select-withcolor emby-select">
-                            <option value="None">None</option>
-                            <option value="SideBySide">Side by Side</option>
-                            <option value="TopBottom">Top Bottom</option>
-                        </select>
-                        <div class="fieldDescription">Fallback specific stereo mode for VR content</div>
-                    </div>
                 </div>
 
                 <!-- IP Restriction Settings -->
@@ -93,8 +73,6 @@
                 ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
                     // Load top-level config
                     document.querySelector('#ProxySecret').value = config.ProxySecret || '';
-                    document.querySelector('#FallbackProjection').value = config.FallbackProjection || 'None';
-                    document.querySelector('#FallbackStereoMode').value = config.FallbackStereoMode || 'None';
                     document.querySelector('#EnableIpRestriction').checked = config.EnableIpRestriction || false;
                     document.querySelector('#ipRangesContainer').classList.toggle('hide', !config.EnableIpRestriction);
                     document.querySelector('#AllowedIpRanges').value = (config.AllowedIpRanges || []).join('\n');
@@ -102,8 +80,8 @@
                     // Prepare projection options
                     const projectionOptions = [
                         { value: 'None', text: 'None' },
-                        { value: 'Projection180', text: '180‑degree' },
-                        { value: 'Projection360', text: '360‑degree' }
+                        { value: 'Projection180', text: '180-degree' },
+                        { value: 'Projection360', text: '360-degree' }
                     ];
 
                     // Load library-specific configs
@@ -164,7 +142,7 @@
                             li.appendChild(tlLab);
                             li.appendChild(document.createElement('br'));
 
-                            // Fallback projection
+                            // Fallback projection (per-library)
                             const projLab = document.createElement('label');
                             projLab.textContent = 'Fallback Projection: ';
                             const projSel = document.createElement('select');
@@ -181,7 +159,7 @@
                             projLab.appendChild(projSel);
                             li.appendChild(projLab);
 
-                            // Fallback stereo mode
+                            // Fallback stereo mode (per-library)
                             const stereoLabel = document.createElement('label');
                             stereoLabel.textContent = 'Fallback Stereo Mode: ';
                             const stereoSelect = document.createElement('select');
@@ -220,8 +198,6 @@
 
             ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
                 config.ProxySecret = document.querySelector('#ProxySecret').value;
-                config.FallbackProjection = document.querySelector('#FallbackProjection').value;
-                config.FallbackStereoMode = document.querySelector('#FallbackStereoMode').value;
                 config.EnableIpRestriction = document.querySelector('#EnableIpRestriction').checked;
                 config.AllowedIpRanges = document.querySelector('#AllowedIpRanges').value.split('\n').map(l => l.trim()).filter(l => l);
 

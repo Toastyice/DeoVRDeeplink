@@ -70,8 +70,6 @@ public class PluginConfiguration : BasePluginConfiguration
     public PluginConfiguration()
     {
         ProxySecret = Guid.NewGuid().ToString("N");
-        FallbackProjection = ProjectionType.Projection180;
-        FallbackStereoMode = StereoMode.SideBySide;
         AllowedIpRanges = [];
         EnableIpRestriction = false;
         Libraries = new List<LibraryConfiguration>();
@@ -81,16 +79,6 @@ public class PluginConfiguration : BasePluginConfiguration
     ///     Secret for signing proxy tokens
     /// </summary>
     public string ProxySecret { get; set; }
-
-    /// <summary>
-    ///     Fallback projection type (180/360/None)
-    /// </summary>
-    public ProjectionType FallbackProjection { get; set; }
-
-    /// <summary>
-    ///     Fallback stereo mode (SBS/TB/None)
-    /// </summary>
-    public StereoMode FallbackStereoMode { get; set; }
 
     /// <summary>
     ///     List of allowed IP ranges in CIDR notation (e.g., "192.168.1.0/24", "10.0.0.0/8", "127.0.0.1/32")
