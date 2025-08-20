@@ -66,59 +66,82 @@ namespace DeoVRDeeplink.ScheduledTasks;
             ];
         }
 
-        public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+
+public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+{
+    var items = new List<Video>();
+    var configLibraries = DeoVrDeeplinkPlugin.Instance!.Configuration.Libraries;
+    
+    // Get libraries that have TimelineImages enabled
+    var librariesToProcess = GetAllLibraries()
+        .Where(library =>
         {
-            var items = new List<Video>();
-            var includedLibraryNames = DeoVrDeeplinkPlugin.Instance!.Configuration.TimelineIncludedLibrary;
-            if (includedLibraryNames.Length > 0)
-            {
-                var librariesToProcess = GetAllLibraries()
-                    .Where(lib => includedLibraryNames.Contains(lib.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToArray();
+            var libraryConfig = configLibraries.FirstOrDefault(config => config.Id == library.Id);
+            return libraryConfig != null && libraryConfig.Enabled && libraryConfig.TimelineImages;
+        })
+        .ToArray();
 
-                foreach (var library in librariesToProcess)
-                {
-                    items.AddRange(GetVideosFromLibrary(library).ToArray());
-                }
-            }
-            
-            var numComplete = 0;
-            
-            foreach (var item in items)
-            {
-                try
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    
-                    await new VideoProcessor(
-                        _loggerFactory,
-                        _loggerFactory.CreateLogger<VideoProcessor>(),
-                        _mediaEncoder,
-                        _configurationManager,
-                        _fileSystem,
-                        _appPaths,
-                        _libraryMonitor,
-                        _encodingHelper)
-                        .Run(item, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError("Error creating timeline images for {0}: {1}", item.Name, ex);
-                }
+    _logger.LogInformation("Found {Count} libraries with timeline images enabled", librariesToProcess.Length);
 
-                numComplete++;
-                double percent = numComplete;
-                percent /= items.Count;
-                percent *= 100;
-
-                progress.Report(percent);
-            }
-        }
+    foreach (var library in librariesToProcess)
+    {
+        var libraryVideos = GetVideosFromLibrary(library).ToArray();
+        items.AddRange(libraryVideos);
         
+        _logger.LogInformation("Added {VideoCount} videos from library: {LibraryName} (ID: {LibraryId})", 
+            libraryVideos.Length, library.Name, library.Id);
+    }
+
+    _logger.LogInformation("Total videos selected for timeline processing: {TotalCount}", items.Count);
+
+    if (items.Count == 0)
+    {
+        _logger.LogWarning("No videos found for timeline processing. Check that libraries have TimelineImages=true in configuration.");
+        progress.Report(100);
+        return;
+    }
+
+    var numComplete = 0;
+    
+    foreach (var item in items)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            
+            _logger.LogDebug("Processing timeline images for: {VideoName}", item.Name);
+            
+            await new VideoProcessor(
+                _loggerFactory,
+                _loggerFactory.CreateLogger<VideoProcessor>(),
+                _mediaEncoder,
+                _configurationManager,
+                _fileSystem,
+                _appPaths,
+                _libraryMonitor,
+                _encodingHelper)
+                .Run(item, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            break;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating timeline images for {VideoName}", item.Name);
+        }
+
+        numComplete++;
+        double percent = numComplete;
+        percent /= items.Count;
+        percent *= 100;
+
+        progress.Report(percent);
+    }
+    
+    _logger.LogInformation("Timeline generation completed. Processed {ProcessedCount}/{TotalCount} videos", 
+        numComplete, items.Count);
+}
         private IEnumerable<Folder> GetAllLibraries()
         {
             return _libraryManager.GetUserRootFolder()
