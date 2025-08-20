@@ -174,35 +174,6 @@ public class DeoVrDeeplinkController(
         };
         return response;
     }
-
-    private LibraryConfiguration? GetLibraryConfigForItemOld(BaseItem item)
-    {
-        var config = DeoVrDeeplinkPlugin.Instance!.Configuration;
-        var libraries = config.Libraries;
-
-        var partenLib = _libraryManager.GetCollectionFolders(item).FirstOrDefault();
-        BaseItem? current = item;
-
-        while (current != null)
-        {
-            var lib = libraries.FirstOrDefault(l => l.Id == current.Id);
-            if (lib != null)
-            {
-                _logger.LogInformation($"Found library config for {current.Name} (Id: {current.Id})");
-                return lib;
-            }
-
-            if (current.ParentId == null)
-                break;
-
-            // Fetch parent item by ParentId - replace with your actual method to get a BaseItem by Id
-            current = _itemRepository.RetrieveItem(current.ParentId); //_itemRepository.GetItemById(current.ParentId);
-        }
-
-        _logger.LogWarning($"No library config found for item {item.Name} (Id: {item.Id})");
-        return null;
-    }
-    
     
     private LibraryConfiguration? GetLibraryConfigForItem(BaseItem item)
     {
