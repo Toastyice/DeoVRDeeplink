@@ -100,6 +100,10 @@
                             <div class="fieldDescription">Apply distortion correction to timeline images for VR content (Experimental)</div>
                         </div>
                     </div>
+                    <div>
+                        <h2>Library Settings</h2>
+                        <ul id="librarySettingsList"></ul>
+                    </div>
                 </div>
 
                 <div>
@@ -116,107 +120,189 @@
         };
 
         document.querySelector('#DeoVRDeeplinkConfigPage')
-            .addEventListener('pageshow', function() {
+            .addEventListener('pageshow', function () {
                 Dashboard.showLoadingMsg();
+
                 ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
+                    // Load top-level config
                     document.querySelector('#ProxySecret').value = config.ProxySecret || '';
-
-                    // Use the enum string values instead of numeric values
-                    var projectionValue = config.FallbackProjection || 'None';
-                    var stereoValue = config.FallbackStereoMode || 'None';
-
-                    document.querySelector('#FallbackProjection').value = projectionValue;
-                    document.querySelector('#FallbackStereoMode').value = stereoValue;
-
-                    // Set IP restriction options
-                    var enableIpRestriction = config.EnableIpRestriction || false;
-                    document.querySelector('#EnableIpRestriction').checked = enableIpRestriction;
-
-                    // Show/hide IP ranges container based on checkbox
-                    document.querySelector('#ipRangesContainer').classList.toggle('hide', !enableIpRestriction);
-
-                    // Join the IP ranges with newlines for display in textarea
-                    var ipRanges = (config.AllowedIpRanges || []).join('\n');
-                    document.querySelector('#AllowedIpRanges').value = ipRanges;
-
-                    // Set Timeline settings
-                    var hasTimelineLibraries = config.TimelineIncludedLibrary && config.TimelineIncludedLibrary.length > 0;
+                    document.querySelector('#FallbackProjection').value = config.FallbackProjection || 'None';
+                    document.querySelector('#FallbackStereoMode').value = config.FallbackStereoMode || 'None';
+                    document.querySelector('#EnableIpRestriction').checked = config.EnableIpRestriction || false;
+                    document.querySelector('#ipRangesContainer').classList.toggle('hide', !config.EnableIpRestriction);
+                    document.querySelector('#AllowedIpRanges').value = (config.AllowedIpRanges || []).join('\n');
+                    const hasTimelineLibraries = config.TimelineIncludedLibrary && config.TimelineIncludedLibrary.length > 0;
                     document.querySelector('#EnableTimeline').checked = hasTimelineLibraries;
-
-                    // Show/hide Timeline libraries container based on checkbox
                     document.querySelector('#timelineLibrariesContainer').classList.toggle('hide', !hasTimelineLibraries);
+                    document.querySelector('#TimelineIncludedLibrary').value = (config.TimelineIncludedLibrary || []).join('\n');
+                    document.querySelector('#TimelineRemoveDistortion').checked = config.TimelineRemoveDistortion || false;
 
-                    // Join the timeline libraries with newlines for display in textarea
-                    var timelineLibraries = (config.TimelineIncludedLibrary || []).join('\n');
-                    document.querySelector('#TimelineIncludedLibrary').value = timelineLibraries;
+                    // Prepare projection options
+                    const projectionOptions = [
+                        { value: 'None', text: 'None' },
+                        { value: 'Projection180', text: '180‑degree' },
+                        { value: 'Projection360', text: '360‑degree' }
+                    ];
 
-                    // Set TimelineRemoveDistortion checkbox
-                    var timelineRemoveDistortion = config.TimelineRemoveDistortion || false;
-                    document.querySelector('#TimelineRemoveDistortion').checked = timelineRemoveDistortion;
+                    // Now load library-specific configs
+                    ApiClient.getUserViews().then(function (result) {
+                        const list = document.getElementById("librarySettingsList");
+                        list.innerHTML = '';
 
-                    console.log("Loaded config:", config);
+                        const movieLibraries = result.Items.filter(v => v.CollectionType === 'movies');
+
+                        movieLibraries.forEach(view => {
+                            const cfg = (config.Libraries || []).find(lib => lib.Id === view.Id) || {};
+                            const enabled = cfg.Enabled || false;
+                            const random = cfg.Random || false;
+                            const timelineImg = cfg.TimelineImages || false;
+                            const projection = cfg.FallbackProjection || 'None';
+
+                            const li = document.createElement('li');
+                            li.style.marginBottom = '1em';
+
+                            const title = document.createElement('div');
+                            title.textContent = view.Name;
+                            title.style.fontWeight = 'bold';
+                            li.appendChild(title);
+
+                            // Enabled
+                            const enLab = document.createElement('label');
+                            const enChk = document.createElement('input');
+                            enChk.type = 'checkbox';
+                            enChk.className = 'lib-enabled';
+                            enChk.dataset.id = view.Id;
+                            enChk.checked = enabled;
+                            enLab.appendChild(enChk);
+                            enLab.appendChild(document.createTextNode(' Enabled'));
+                            li.appendChild(enLab);
+                            li.appendChild(document.createElement('br'));
+
+                            // Random
+                            const rndLab = document.createElement('label');
+                            const rndChk = document.createElement('input');
+                            rndChk.type = 'checkbox';
+                            rndChk.className = 'lib-random';
+                            rndChk.dataset.id = view.Id;
+                            rndChk.checked = random;
+                            rndLab.appendChild(rndChk);
+                            rndLab.appendChild(document.createTextNode(' Random'));
+                            li.appendChild(rndLab);
+                            li.appendChild(document.createElement('br'));
+
+                            // Timeline images
+                            const tlLab = document.createElement('label');
+                            const tlChk = document.createElement('input');
+                            tlChk.type = 'checkbox';
+                            tlChk.className = 'lib-timeline';
+                            tlChk.dataset.id = view.Id;
+                            tlChk.checked = timelineImg;
+                            tlLab.appendChild(tlChk);
+                            tlLab.appendChild(document.createTextNode(' Timeline Images'));
+                            li.appendChild(tlLab);
+                            li.appendChild(document.createElement('br'));
+
+                            // Fallback projection
+                            const projLab = document.createElement('label');
+                            projLab.textContent = 'Fallback Projection: ';
+                            const projSel = document.createElement('select');
+                            projSel.className = 'lib-projection';
+                            projSel.dataset.id = view.Id;
+
+                            projectionOptions.forEach(opt => {
+                                const option = document.createElement('option');
+                                option.value = opt.value;
+                                option.textContent = opt.text;
+                                projSel.appendChild(option);
+                            });
+                            projSel.value = projection;
+                            projLab.appendChild(projSel);
+                            li.appendChild(projLab);
+
+                            // Fallback stereo mode dropdown
+                            const stereoLabel = document.createElement('label');
+                            stereoLabel.textContent = 'Fallback Stereo Mode: ';
+                            const stereoSelect = document.createElement('select');
+                            stereoSelect.className = 'lib-stereo';
+                            stereoSelect.dataset.id = view.Id;
+
+                            // Add stereo options
+                            ['None', 'SideBySide', 'TopBottom'].forEach(function (mode) {
+                                const option = document.createElement('option');
+                                option.value = mode;
+                                option.textContent = mode === 'SideBySide' ? 'Side by Side' : mode === 'TopBottom' ? 'Top Bottom' : 'None';
+                                stereoSelect.appendChild(option);
+                            });
+
+                            // Set selected value from config
+                            stereoSelect.value = cfg.FallbackStereoMode || 'None';
+
+                            li.appendChild(document.createElement('br'));
+                            stereoLabel.appendChild(stereoSelect);
+                            li.appendChild(stereoLabel);
+                            li.appendChild(document.createElement('br'));
+
+                            list.appendChild(li);
+                        });
+                    }).catch(console.error);
+
                     Dashboard.hideLoadingMsg();
                 });
 
-                // Set up event listener for the IP restriction checkbox
-                document.querySelector('#EnableIpRestriction').addEventListener('change', function(e) {
+                // Toggle handlers
+                document.querySelector('#EnableIpRestriction').addEventListener('change', e => {
                     document.querySelector('#ipRangesContainer').classList.toggle('hide', !e.target.checked);
                 });
-
-                // Set up event listener for the Timeline checkbox
-                document.querySelector('#EnableTimeline').addEventListener('change', function(e) {
+                document.querySelector('#EnableTimeline').addEventListener('change', e => {
                     document.querySelector('#timelineLibrariesContainer').classList.toggle('hide', !e.target.checked);
                 });
             });
 
-        document.querySelector('#DeoVRDeeplinkConfigForm')
-            .addEventListener('submit', function(e) {
-                e.preventDefault();
+        document.querySelector('#DeoVRDeeplinkConfigForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            Dashboard.showLoadingMsg();
 
-                Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
-                    config.ProxySecret = document.querySelector('#ProxySecret').value;
+            ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
+                config.ProxySecret = document.querySelector('#ProxySecret').value;
+                config.FallbackProjection = document.querySelector('#FallbackProjection').value;
+                config.FallbackStereoMode = document.querySelector('#FallbackStereoMode').value;
+                config.EnableIpRestriction = document.querySelector('#EnableIpRestriction').checked;
+                config.AllowedIpRanges = document.querySelector('#AllowedIpRanges').value.split('\n').map(l => l.trim()).filter(l => l);
+                const enableTimeline = document.querySelector('#EnableTimeline').checked;
+                config.TimelineIncludedLibrary = enableTimeline ? document.querySelector('#TimelineIncludedLibrary').value.split('\n').map(l => l.trim()).filter(l => l) : [];
+                config.TimelineRemoveDistortion = document.querySelector('#TimelineRemoveDistortion').checked;
 
-                    // Use string enum values directly
-                    config.FallbackProjection = document.querySelector('#FallbackProjection').value;
-                    config.FallbackStereoMode = document.querySelector('#FallbackStereoMode').value;
+                // Collect and save per-library configs
+                const libs = [];
+                const enabledBoxes = document.querySelectorAll('.lib-enabled');
 
-                    // Get IP restriction settings
-                    config.EnableIpRestriction = document.querySelector('#EnableIpRestriction').checked;
+                enabledBoxes.forEach(function (enabledCheckbox) {
+                    var id = enabledCheckbox.dataset.id;
 
-                    // Split the textarea content by newlines and filter empty lines
-                    var ipRangesText = document.querySelector('#AllowedIpRanges').value;
-                    config.AllowedIpRanges = ipRangesText
-                        .split('\n')
-                        .map(function(line) { return line.trim(); })
-                        .filter(function(line) { return line.length > 0; });
+                    var randomCheckbox = document.querySelector('.lib-random[data-id="' + id + '"]');
+                    var timelineCheckbox = document.querySelector('.lib-timeline[data-id="' + id + '"]');
+                    var projectionSelect = document.querySelector('.lib-projection[data-id="' + id + '"]');
+                    var stereoSelect = document.querySelector('.lib-stereo[data-id="' + id + '"]');
 
-                    // Get Timeline settings
-                    var enableTimeline = document.querySelector('#EnableTimeline').checked;
-                    var timelineLibrariesText = document.querySelector('#TimelineIncludedLibrary').value;
-                    var timelineRemoveDistortion = document.querySelector('#TimelineRemoveDistortion').checked;
-
-                    if (enableTimeline) {
-                        config.TimelineIncludedLibrary = timelineLibrariesText
-                            .split('\n')
-                            .map(function(line) { return line.trim(); })
-                            .filter(function(line) { return line.length > 0; });
-                    } else {
-                        config.TimelineIncludedLibrary = [];
-                    }
-
-                    // Set TimelineRemoveDistortion value
-                    config.TimelineRemoveDistortion = timelineRemoveDistortion;
-
-                    console.log("Saving config:", config);
-
-                    ApiClient.updatePluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId, config).then(function (result) {
-                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    libs.push({
+                        Id: id,
+                        Name: '', // Optional: You can fill in the name if needed
+                        Enabled: enabledCheckbox.checked,
+                        Random: randomCheckbox ? randomCheckbox.checked : false,
+                        TimelineImages: timelineCheckbox ? timelineCheckbox.checked : false,
+                        FallbackProjection: projectionSelect ? projectionSelect.value : 'None',
+                        FallbackStereoMode: stereoSelect ? stereoSelect.value : 'None'
                     });
                 });
+                console.log('Saving libraries config:', JSON.stringify(libs));
+                config.Libraries = libs;
 
-                return false;
+                ApiClient.updatePluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId, config)
+                    .then(Dashboard.processPluginConfigurationUpdateResult);
             });
+
+            return false;
+        });
     </script>
 </div>
 </body>

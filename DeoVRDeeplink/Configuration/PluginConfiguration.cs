@@ -47,6 +47,17 @@ public enum StereoMode
     TopBottom = 2
 }
 
+public class LibraryConfiguration
+{
+    public string Id { get; set; }              // Library ID
+    public string Name { get; set; }            // Optional: Library name
+    public bool Enabled { get; set; }           // Enabled toggle
+    public bool Random { get; set; }            // Random toggle
+    public bool TimelineImages { get; set; }    // Timeline images toggle
+    public ProjectionType FallbackProjection { get; set; }  // Fallback projection enum
+    public StereoMode FallbackStereoMode { get; set; }
+}
+
 /// <summary>
 ///     Plugin configuration.
 /// </summary>
@@ -63,6 +74,7 @@ public class PluginConfiguration : BasePluginConfiguration
         FallbackStereoMode = StereoMode.SideBySide;
         AllowedIpRanges = [];
         EnableIpRestriction = false;
+        Libraries = new List<LibraryConfiguration>();
     }
 
     /// <summary>
@@ -99,4 +111,9 @@ public class PluginConfiguration : BasePluginConfiguration
     ///     Enable an additional filter to attempt to remove VR distortion from the timeline image (Experimental)
     /// </summary>
     public bool TimelineRemoveDistortion { get; set; } = false;
+    
+    /// <summary>
+    /// Per-library configurations
+    /// </summary>
+    public List<LibraryConfiguration> Libraries { get; set; }
 }
