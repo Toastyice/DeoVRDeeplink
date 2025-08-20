@@ -1,4 +1,5 @@
 ﻿using System.Net.Mime;
+using DeoVRDeeplink.Configuration;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.Library;
@@ -43,7 +44,8 @@ public class DeoVrController : ControllerBase
         try
         {
             var baseUrl = GetServerUrl();
-            var libraries = GetAllEnabledLibraries().ToArray();
+            var configLibraries = DeoVrDeeplinkPlugin.Instance!.Configuration.Libraries;
+            var libraries = GetAllEnabledLibraries(configLibraries).ToArray();
             
             if (libraries.Length == 0)
             {
@@ -81,6 +83,25 @@ public class DeoVrController : ControllerBase
 
                 _logger.LogInformation("Added {Count} videos from library: {LibraryName}", 
                     videoList.Count, library.Name);
+                
+                // Check if this library has the random flag enabled
+                if (configLibraries.FirstOrDefault(config => config.Id == library.Id) is { Enabled: true, Random: true })
+                {
+                    // Create a randomized duplicate of the video list
+                    var random = new Random();
+                    var randomizedVideoList = videoList.OrderBy(x => random.Next()).ToList();
+
+                    var randomScene = new DeoVrScene
+                    {
+                        Name = $"{library.Name} - Random",
+                        List = randomizedVideoList
+                    };
+
+                    response.Scenes.Add(randomScene);
+
+                    _logger.LogInformation("Added randomized scene with {Count} videos for library: {LibraryName}", 
+                        randomizedVideoList.Count, library.Name);
+                }
             }
 
             var totalVideos = response.Scenes.Sum(scene => scene.List.Count);
@@ -96,14 +117,13 @@ public class DeoVrController : ControllerBase
         }
     }
 
-    private IEnumerable<Folder> GetAllEnabledLibraries()
+    private IEnumerable<Folder> GetAllEnabledLibraries(IList<LibraryConfiguration> configLibraries)
     {
-        var enabledLibraries = DeoVrDeeplinkPlugin.Instance!.Configuration.Libraries;
         var allLibraries = _libraryManager.GetUserRootFolder()
             .Children
             .OfType<CollectionFolder>();
 
-        var enabledLibraryIds = enabledLibraries
+        var enabledLibraryIds = configLibraries
             .Where(lib => lib.Enabled)
             .Select(lib => lib.Id);
 
