@@ -3,6 +3,33 @@
 <head>
     <meta charset="utf-8">
     <title>DeoVR Deeplink</title>
+    <style>
+        /* Align library controls in a clean row */
+        .listItemBody {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .lib-options {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .listItem {
+            padding: 12px;
+            border-bottom: 1px solid var(--theme-border-color, #444);
+        }
+
+        .listItem h3 {
+            margin: 0 0 6px 0;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
 <div id="DeoVRDeeplinkConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox,emby-collapse,emby-textarea">
@@ -50,7 +77,7 @@
                 <!-- Library Settings -->
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Library Settings</h2>
-                    <ul id="librarySettingsList"></ul>
+                    <div id="librarySettingsList" class="paperList"></div>
                 </div>
 
                 <div>
@@ -77,117 +104,102 @@
                     document.querySelector('#ipRangesContainer').classList.toggle('hide', !config.EnableIpRestriction);
                     document.querySelector('#AllowedIpRanges').value = (config.AllowedIpRanges || []).join('\n');
 
-                    // Prepare projection options
-                    const projectionOptions = [
-                        { value: 'None', text: 'None' },
-                        { value: 'Projection180', text: '180-degree' },
-                        { value: 'Projection360', text: '360-degree' }
-                    ];
-
                     // Load library-specific configs
                     ApiClient.getUserViews().then(function (result) {
-                        const list = document.getElementById("librarySettingsList");
+                        var list = document.getElementById("librarySettingsList");
                         list.innerHTML = '';
 
-                        const movieLibraries = result.Items.filter(v => v.CollectionType === 'movies');
+                        var movieLibraries = result.Items.filter(function (v) { return v.CollectionType === 'movies'; });
 
-                        movieLibraries.forEach(view => {
-                            const cfg = (config.Libraries || []).find(lib => lib.Id === view.Id) || {};
-                            const enabled = cfg.Enabled || false;
-                            const random = cfg.Random || false;
-                            const timelineImg = cfg.TimelineImages || false;
-                            const projection = cfg.FallbackProjection || 'None';
+                        movieLibraries.forEach(function (view) {
+                            var cfg = (config.Libraries || []).find(function (lib) { return lib.Id === view.Id; }) || {};
 
-                            const li = document.createElement('li');
-                            li.style.marginBottom = '1em';
+                            var item = document.createElement('div');
+                            item.className = 'listItem';
 
-                            const title = document.createElement('div');
-                            title.textContent = view.Name;
-                            title.style.fontWeight = 'bold';
-                            li.appendChild(title);
+                            // Title
+                            var titleWrap = document.createElement('div');
+                            var h3 = document.createElement('h3');
+                            h3.textContent = view.Name;
+                            titleWrap.appendChild(h3);
+                            item.appendChild(titleWrap);
 
-                            // Enabled
-                            const enLab = document.createElement('label');
-                            const enChk = document.createElement('input');
-                            enChk.type = 'checkbox';
-                            enChk.className = 'lib-enabled';
-                            enChk.dataset.id = view.Id;
-                            enChk.checked = enabled;
-                            enLab.appendChild(enChk);
-                            enLab.appendChild(document.createTextNode(' Enabled'));
-                            li.appendChild(enLab);
-                            li.appendChild(document.createElement('br'));
+                            // Controls
+                            var controls = document.createElement('div');
+                            controls.className = 'listItemBody';
 
-                            // Random
-                            const rndLab = document.createElement('label');
-                            const rndChk = document.createElement('input');
-                            rndChk.type = 'checkbox';
-                            rndChk.className = 'lib-random';
-                            rndChk.dataset.id = view.Id;
-                            rndChk.checked = random;
-                            rndLab.appendChild(rndChk);
-                            rndLab.appendChild(document.createTextNode(' Random'));
-                            li.appendChild(rndLab);
-                            li.appendChild(document.createElement('br'));
+                            // Enabled checkbox
+                            var enabledChecked = cfg.Enabled ? ' checked' : '';
+                            var enabledHtml =
+                                '<label class="emby-checkbox-label">' +
+                                '<input type="checkbox" class="lib-enabled" data-id="' + view.Id + '" is="emby-checkbox"' + enabledChecked + '>' +
+                                '<span>Enabled</span>' +
+                                '</label>';
+                            controls.innerHTML = enabledHtml;
 
-                            // Timeline images
-                            const tlLab = document.createElement('label');
-                            const tlChk = document.createElement('input');
-                            tlChk.type = 'checkbox';
-                            tlChk.className = 'lib-timeline';
-                            tlChk.dataset.id = view.Id;
-                            tlChk.checked = timelineImg;
-                            tlLab.appendChild(tlChk);
-                            tlLab.appendChild(document.createTextNode(' Timeline Images'));
-                            li.appendChild(tlLab);
-                            li.appendChild(document.createElement('br'));
+                            // Options wrapper (hidden if not enabled)
+                            var options = document.createElement('div');
+                            options.className = 'lib-options';
+                            if (!cfg.Enabled) options.style.display = 'none';
 
-                            // Fallback projection (per-library)
-                            const projLab = document.createElement('label');
-                            projLab.textContent = 'Fallback Projection: ';
-                            const projSel = document.createElement('select');
-                            projSel.className = 'lib-projection';
-                            projSel.dataset.id = view.Id;
+                            // Random checkbox
+                            var randomChecked = cfg.Random ? ' checked' : '';
+                            options.innerHTML +=
+                                '<label class="emby-checkbox-label">' +
+                                '<input type="checkbox" class="lib-random" data-id="' + view.Id + '" is="emby-checkbox"' + randomChecked + '>' +
+                                '<span>Random</span>' +
+                                '</label>';
 
-                            projectionOptions.forEach(opt => {
-                                const option = document.createElement('option');
-                                option.value = opt.value;
-                                option.textContent = opt.text;
-                                projSel.appendChild(option);
+                            // Timeline Images checkbox
+                            var timelineChecked = cfg.TimelineImages ? ' checked' : '';
+                            options.innerHTML +=
+                                '<label class="emby-checkbox-label">' +
+                                '<input type="checkbox" class="lib-timeline" data-id="' + view.Id + '" is="emby-checkbox"' + timelineChecked + '>' +
+                                '<span>Timeline Images</span>' +
+                                '</label>';
+
+                            // Projection select
+                            options.innerHTML +=
+                                '<label>' +
+                                'Projection: ' +
+                                '<select class="lib-projection" data-id="' + view.Id + '" is="emby-select">' +
+                                '<option value="None">None</option>' +
+                                '<option value="Projection180">180-degree</option>' +
+                                '<option value="Projection360">360-degree</option>' +
+                                '</select>' +
+                                '</label>';
+
+                            // Stereo select
+                            options.innerHTML +=
+                                '<label>' +
+                                'Stereo Mode: ' +
+                                '<select class="lib-stereo" data-id="' + view.Id + '" is="emby-select">' +
+                                '<option value="None">None</option>' +
+                                '<option value="SideBySide">Side by Side</option>' +
+                                '<option value="TopBottom">Top Bottom</option>' +
+                                '</select>' +
+                                '</label>';
+
+                            controls.appendChild(options);
+                            item.appendChild(controls);
+                            list.appendChild(item);
+
+                            // Set dropdowns
+                            item.querySelector('.lib-projection').value = cfg.FallbackProjection || 'None';
+                            item.querySelector('.lib-stereo').value = cfg.FallbackStereoMode || 'None';
+
+                            // Add toggle logic
+                            var enabledBox = item.querySelector('.lib-enabled');
+                            enabledBox.addEventListener('change', function () {
+                                options.style.display = enabledBox.checked ? '' : 'none';
                             });
-                            projSel.value = projection;
-                            projLab.appendChild(projSel);
-                            li.appendChild(projLab);
-
-                            // Fallback stereo mode (per-library)
-                            const stereoLabel = document.createElement('label');
-                            stereoLabel.textContent = 'Fallback Stereo Mode: ';
-                            const stereoSelect = document.createElement('select');
-                            stereoSelect.className = 'lib-stereo';
-                            stereoSelect.dataset.id = view.Id;
-
-                            ['None', 'SideBySide', 'TopBottom'].forEach(function (mode) {
-                                const option = document.createElement('option');
-                                option.value = mode;
-                                option.textContent = mode === 'SideBySide' ? 'Side by Side' : mode === 'TopBottom' ? 'Top Bottom' : 'None';
-                                stereoSelect.appendChild(option);
-                            });
-
-                            stereoSelect.value = cfg.FallbackStereoMode || 'None';
-
-                            li.appendChild(document.createElement('br'));
-                            stereoLabel.appendChild(stereoSelect);
-                            li.appendChild(stereoLabel);
-                            li.appendChild(document.createElement('br'));
-
-                            list.appendChild(li);
                         });
                     }).catch(console.error);
 
                     Dashboard.hideLoadingMsg();
                 });
 
-                document.querySelector('#EnableIpRestriction').addEventListener('change', e => {
+                document.querySelector('#EnableIpRestriction').addEventListener('change', function (e) {
                     document.querySelector('#ipRangesContainer').classList.toggle('hide', !e.target.checked);
                 });
             });
@@ -199,19 +211,19 @@
             ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
                 config.ProxySecret = document.querySelector('#ProxySecret').value;
                 config.EnableIpRestriction = document.querySelector('#EnableIpRestriction').checked;
-                config.AllowedIpRanges = document.querySelector('#AllowedIpRanges').value.split('\n').map(l => l.trim()).filter(l => l);
+                config.AllowedIpRanges = document.querySelector('#AllowedIpRanges').value.split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l; });
 
                 // Collect per-library configs
-                const libs = [];
-                const enabledBoxes = document.querySelectorAll('.lib-enabled');
+                var libs = [];
+                var enabledBoxes = document.querySelectorAll('.lib-enabled');
 
                 enabledBoxes.forEach(function (enabledCheckbox) {
-                    const id = enabledCheckbox.dataset.id;
+                    var id = enabledCheckbox.dataset.id;
 
-                    const randomCheckbox = document.querySelector('.lib-random[data-id="' + id + '"]');
-                    const timelineCheckbox = document.querySelector('.lib-timeline[data-id="' + id + '"]');
-                    const projectionSelect = document.querySelector('.lib-projection[data-id="' + id + '"]');
-                    const stereoSelect = document.querySelector('.lib-stereo[data-id="' + id + '"]');
+                    var randomCheckbox = document.querySelector('.lib-random[data-id="' + id + '"]');
+                    var timelineCheckbox = document.querySelector('.lib-timeline[data-id="' + id + '"]');
+                    var projectionSelect = document.querySelector('.lib-projection[data-id="' + id + '"]');
+                    var stereoSelect = document.querySelector('.lib-stereo[data-id="' + id + '"]');
 
                     libs.push({
                         Id: id,
