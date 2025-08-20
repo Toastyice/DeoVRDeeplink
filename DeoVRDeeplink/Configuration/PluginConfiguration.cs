@@ -103,16 +103,6 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool EnableIpRestriction { get; set; }
     
     /// <summary>
-    ///     Names of Libraries to create TimelineImages
-    /// </summary>
-    public string[] TimelineIncludedLibrary { get; set; } = [];
-    
-    /// <summary>
-    ///     Enable an additional filter to attempt to remove VR distortion from the timeline image (Experimental)
-    /// </summary>
-    public bool TimelineRemoveDistortion { get; set; } = false;
-    
-    /// <summary>
     /// Per-library configurations
     /// </summary>
     public List<LibraryConfiguration> Libraries { get; set; }
