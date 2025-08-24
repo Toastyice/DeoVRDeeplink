@@ -62,6 +62,14 @@
                 "sourceUrl": "https://github.com/Toastyice/DeoVRDeeplink/releases/download/v2.1.0.0/DeoVRDeeplink-v2.1.0.0.zip",
                 "checksum": "1ffc36f7df87a39824c96be9ece0d55d",
                 "timestamp": "2025-08-20T13:34:00Z"
+            },
+            {
+                "version": "2.2.0.0",
+                "changelog": "Add per library settings",
+                "targetAbi": "10.10.7.0",
+                "sourceUrl": "https://github.com/Toastyice/DeoVRDeeplink/releases/download/v2.2.0.0/DeoVRDeeplink-v2.2.0.0.zip",
+                "checksum": "04d600604ff7e0831734c9e74cf06274",
+                "timestamp": "2025-08-24T11:47:00Z"
             }
         ]
     }
