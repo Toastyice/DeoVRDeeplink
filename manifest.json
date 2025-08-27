@@ -68,7 +68,7 @@
                 "changelog": "Add remove invalid/stale timeline images",
                 "targetAbi": "10.10.7.0",
                 "sourceUrl": "https://github.com/Toastyice/DeoVRDeeplink/releases/download/v2.2.0.0/DeoVRDeeplink-v2.2.0.0.zip",
-                "checksum": "04d600604ff7e0831734c9e74cf06274",
+                "checksum": "6698c2f213bdc43cef06540f9e26b40a",
                 "timestamp": "2025-08-24T11:47:00Z"
             }
         ]
