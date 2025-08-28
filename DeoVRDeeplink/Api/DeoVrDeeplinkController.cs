@@ -122,27 +122,29 @@ public class DeoVrDeeplinkController(
 
     private DeoVrVideoResponse? BuildVideoResponse(Video video)
     {
-        // Get the media stream info
-        var stream = _mediaSourceManager.GetStaticMediaSources(video, false)
-            .FirstOrDefault()?.MediaStreams
-            .FirstOrDefault(s => s.Type == MediaStreamType.Video);
-
-        var resolution = stream?.Height ?? 2160;
-        var codec = stream?.Codec ?? "h264";
         var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond);
 
-        // Get per-library fallback settings
         var libConfig = GetLibraryConfigForItem(video);
         var fallbackStereo = libConfig?.FallbackStereoMode ?? StereoMode.None;
         var fallbackProjection = libConfig?.FallbackProjection ?? ProjectionType.None;
 
         var (stereoMode, screenType) = Get3DType(video, fallbackStereo, fallbackProjection);
-        
+
         var baseUrl = GetServerUrl();
         var proxySecret = DeoVrDeeplinkPlugin.Instance!.Configuration.ProxySecret;
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
-        var tokenData = $"{video.Id}:{expiry}";
-        var sig = SignUrl(tokenData, proxySecret);
+        
+        var encodings = video.GetMediaSources(false)
+            .GroupBy(ms => ms.VideoStream.Codec ?? "unknown")
+            .Select(g => new DeoVrEncoding
+            {
+                Name = g.Key,
+                VideoSources = g.Select(ms => new DeoVrVideoSource
+                {
+                    Resolution = ms.VideoStream?.Height ?? 2160,
+                    Url = $"{baseUrl}/deovr/proxy/{video.Id}/{ms.Id}/{expiry}/{SignUrl($"{video.Id}:{ms.Id}:{expiry}", proxySecret)}/stream.mp4"
+                }).ToList()
+            }).ToList();
 
         var response = new DeoVrVideoResponse
         {
@@ -154,26 +156,14 @@ public class DeoVrDeeplinkController(
             StereoMode = stereoMode,
             ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop",
             TimelinePreview = $"{baseUrl}/deovr/timeline/{video.Id}/4096_timelinePreview341x195.jpg",
-            Encodings =
-            [
-                new DeoVrEncoding
-                {
-                    Name = codec,
-                    VideoSources =
-                    [
-                        new DeoVrVideoSource
-                        {
-                            Resolution = resolution,
-                            Url = $"{baseUrl}/deovr/proxy/{video.Id}/{expiry}/{sig}/stream.mp4"
-                        }
-                    ]
-                }
-            ],
+            Encodings = encodings,
             Timestamps = GetDeoVrTimestamps(video),
             Corrections = new DeoVrCorrections()
         };
+
         return response;
     }
+
     
     private LibraryConfiguration? GetLibraryConfigForItem(BaseItem item)
     {
@@ -192,7 +182,7 @@ public class DeoVrDeeplinkController(
         var lib = libraries.FirstOrDefault(l => l.Id == collectionFolder.Id);
         if (lib != null)
         {
-            _logger.LogInformation($"Found library config for {collectionFolder.Name} (Id: {collectionFolder.Id})");
+            _logger.LogDebug($"Found library config for {collectionFolder.Name} (Id: {collectionFolder.Id})");
             return lib;
         }
 
@@ -253,14 +243,13 @@ public class DeoVrDeeplinkController(
             )
         };
     }
-
-
+    
     /// <summary>
     ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
-    [HttpGet("proxy/{movieId}/{expiry}/{signature}/stream.mp4")]
+    [HttpGet("proxy/{movieId}/{mediaSourceId}/{expiry}/{signature}/stream.mp4")]
     [AllowAnonymous] //fine? has performance problems otherwise
-    public async Task ProxyStream(string movieId, long expiry, string signature)
+    public async Task ProxyStream(string movieId, string mediaSourceId ,long expiry, string signature)
     {
         // Validate movieId format
         if (!Guid.TryParse(movieId, out _))
@@ -281,13 +270,13 @@ public class DeoVrDeeplinkController(
         }
 
         // Validate signature
-        var dataToSign = $"{movieId}:{expiry}";
+        var dataToSign = $"{movieId}:{mediaSourceId}:{expiry}";
         var expected = SignUrl(dataToSign, proxySecret);
         if (!string.Equals(signature, expected, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogWarning(
-                "Proxy signature mismatch. Provided: {UserSig}, Expected: {ExpectedSig}, movieId: {MovieId}, expiry: {Expiry}",
-                signature, expected, movieId, expiry);
+                "Proxy signature mismatch. Provided: {UserSig}, Expected: {ExpectedSig}, movieId: {MovieId}, mediaSourceId: {mediaSourceId}, expiry: {Expiry}",
+                signature, expected, movieId, mediaSourceId, expiry);
 
             Response.StatusCode = StatusCodes.Status401Unauthorized;
             await Response.Body.FlushAsync();
@@ -297,7 +286,7 @@ public class DeoVrDeeplinkController(
         // Prepare Jellyfin endpoint (should be local for performance)
         var jellyfinInternalBaseUrl = GetInternalBaseUrl();
         var jellyfinUrl =
-            $"{jellyfinInternalBaseUrl}/Videos/{movieId}/stream.mp4?Static=true&mediaSourceId={movieId}&deviceId=DeoVRDeeplink_v1";
+            $"{jellyfinInternalBaseUrl}/Videos/{movieId}/stream.mp4?Static=true&mediaSourceId={mediaSourceId}&deviceId=DeoVRDeeplink";
 
         var httpClient = StaticHttpClient.Instance;
         var forwardRequest = new HttpRequestMessage(HttpMethod.Get, jellyfinUrl);
