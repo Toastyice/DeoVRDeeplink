@@ -63,4 +63,25 @@ public class StaticContentController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving icon resource.");
         }
     }
+    
+    [HttpGet("subtitles/example.srt")]
+    [Produces("application/x-subrip")]
+    [AllowAnonymous]
+    public IActionResult GetSubtitle()
+    {
+        const string resourceName = "DeoVRDeeplink.Web.example.srt"; 
+        try
+        {
+            var stream = _assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+                return NotFound();
+
+            return File(stream, "application/x-subrip");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving subtitle resource.");
+            return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving subtitle resource.");
+        }
+    }
 }

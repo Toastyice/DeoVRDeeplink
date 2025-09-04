@@ -25,5 +25,6 @@
         <EmbeddedResource Include="Web\DeoVRClient.js" />
         <None Remove="Web\Icon.png" />
         <EmbeddedResource Include="Web\Icon.png" />
+        <EmbeddedResource Include="Web\example.srt" />
     </ItemGroup>
 </Project>

@@ -158,7 +158,14 @@ public class DeoVrDeeplinkController(
             TimelinePreview = $"{baseUrl}/deovr/timeline/{video.Id}/4096_timelinePreview341x195.jpg",
             Encodings = encodings,
             Timestamps = GetDeoVrTimestamps(video),
-            Corrections = new DeoVrCorrections()
+            Corrections = new DeoVrCorrections(),
+            Subtitles = new List<DeoVrSubtitle>
+            {
+                new DeoVrSubtitle
+                {
+                    Url = "https://jellyfin-dev.schella.io/deovr/Subtitles/example.srt"
+                }
+            }
         };
 
         return response;
