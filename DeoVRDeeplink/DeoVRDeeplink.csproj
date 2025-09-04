@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <AssemblyVersion>2.2.1.0</AssemblyVersion>
+        <AssemblyVersion>2.2.2.0</AssemblyVersion>
     </PropertyGroup>
 
     <ItemGroup>
