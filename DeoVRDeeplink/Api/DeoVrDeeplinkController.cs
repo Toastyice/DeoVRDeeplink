@@ -30,10 +30,10 @@ public class DeoVrDeeplinkController(
 {
     private readonly IServerConfigurationManager _config = config;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly IItemRepository _itemRepository = itemRepository;
     private readonly ILibraryManager _libraryManager = libraryManager;
     private readonly ILogger<DeoVrDeeplinkController> _logger = logger;
     private readonly IMediaSourceManager _mediaSourceManager = mediaSourceManager;
-    private readonly IItemRepository _itemRepository = itemRepository;
 
     /// <summary>
     ///     Returns DeoVR compatible JSON for a movie or Person.
@@ -43,7 +43,6 @@ public class DeoVrDeeplinkController(
     [IpWhitelist]
     public IActionResult GetDeoVrResponse(string Id)
     {
-        
         if (!Guid.TryParse(Id, out var itemId))
             return NotFound();
 
@@ -92,12 +91,12 @@ public class DeoVrDeeplinkController(
             .GetItemList(query)
             .OfType<Video>()
             .Select(video => new DeoVrVideoItem
-        {
-            Title = video.Name,
-            VideoLength = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond),
-            VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
-            ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop"
-        }).ToList();
+            {
+                Title = video.Name,
+                VideoLength = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond),
+                VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
+                ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop"
+            }).ToList();
         var scene = new DeoVrScene
         {
             Name = person.Name,
@@ -105,7 +104,7 @@ public class DeoVrDeeplinkController(
         };
 
         response.Scenes.Add(scene);
-        _logger.LogInformation("Added {Count} videos from library: {Person}", 
+        _logger.LogInformation("Added {Count} videos from library: {Person}",
             videoList.Count, person.Name);
         return response;
     }
@@ -128,12 +127,13 @@ public class DeoVrDeeplinkController(
         var fallbackStereo = libConfig?.FallbackStereoMode ?? StereoMode.None;
         var fallbackProjection = libConfig?.FallbackProjection ?? ProjectionType.None;
 
-        var (stereoMode, screenType) = Get3DType(video, fallbackStereo, fallbackProjection);
-
         var baseUrl = GetServerUrl();
         var proxySecret = DeoVrDeeplinkPlugin.Instance!.Configuration.ProxySecret;
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
-        
+
+        var thumbnailUrl = GetImageUrlWithFallback(video, ImageType.Backdrop, baseUrl);
+        var (stereoMode, screenType) = Get3DType(video, fallbackStereo, fallbackProjection);
+
         var encodings = video.GetMediaSources(false)
             .GroupBy(ms => ms.VideoStream.Codec ?? "unknown")
             .Select(g => new DeoVrEncoding
@@ -142,7 +142,8 @@ public class DeoVrDeeplinkController(
                 VideoSources = g.Select(ms => new DeoVrVideoSource
                 {
                     Resolution = ms.VideoStream?.Height ?? 2160,
-                    Url = $"{baseUrl}/deovr/proxy/{video.Id}/{ms.Id}/{expiry}/{SignUrl($"{video.Id}:{ms.Id}:{expiry}", proxySecret)}/stream.mp4"
+                    Url =
+                        $"{baseUrl}/deovr/proxy/{video.Id}/{ms.Id}/{expiry}/{SignUrl($"{video.Id}:{ms.Id}:{expiry}", proxySecret)}/stream.mp4"
                 }).ToList()
             }).ToList();
 
@@ -154,7 +155,7 @@ public class DeoVrDeeplinkController(
             VideoLength = runtimeSeconds,
             ScreenType = screenType,
             StereoMode = stereoMode,
-            ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop",
+            ThumbnailUrl = thumbnailUrl!,
             TimelinePreview = $"{baseUrl}/deovr/timeline/{video.Id}/4096_timelinePreview341x195.jpg",
             Encodings = encodings,
             Timestamps = GetDeoVrTimestamps(video),
@@ -164,7 +165,7 @@ public class DeoVrDeeplinkController(
         return response;
     }
 
-    
+
     private LibraryConfiguration? GetLibraryConfigForItem(BaseItem item)
     {
         var config = DeoVrDeeplinkPlugin.Instance!.Configuration;
@@ -174,7 +175,7 @@ public class DeoVrDeeplinkController(
         var collectionFolder = _libraryManager.GetCollectionFolders(item).FirstOrDefault();
         if (collectionFolder == null)
         {
-            _logger.LogWarning($"No collection folder found for item {item.Name} (Id: {item.Id})");
+            _logger.LogWarning("No collection folder found for item {ItemName} (Id: {ItemId})", item.Name, item.Id);
             return null;
         }
 
@@ -182,11 +183,13 @@ public class DeoVrDeeplinkController(
         var lib = libraries.FirstOrDefault(l => l.Id == collectionFolder.Id);
         if (lib != null)
         {
-            _logger.LogDebug($"Found library config for {collectionFolder.Name} (Id: {collectionFolder.Id})");
+            _logger.LogDebug("Found library config for {CollectionFolderName} (Id: {CollectionFolderId})",
+                collectionFolder.Name, collectionFolder.Id);
             return lib;
         }
 
-        _logger.LogWarning($"No library config found for library {collectionFolder.Name} (Id: {collectionFolder.Id})");
+        _logger.LogWarning("No library config found for library {CollectionFolderName} (Id: {CollectionFolderId})",
+            collectionFolder.Name, collectionFolder.Id);
         return null;
     }
 
@@ -196,7 +199,7 @@ public class DeoVrDeeplinkController(
     private List<DeoVrTimestamps> GetDeoVrTimestamps(BaseItem item)
     {
         try
-        {   
+        {
             var chapters = _itemRepository.GetChapters(item);
 
             if (chapters != null && chapters.Count != 0)
@@ -209,7 +212,6 @@ public class DeoVrDeeplinkController(
                     .ToList();
             _logger.LogDebug("No chapters found for item {ItemName}", item.Name);
             return [];
-
         }
         catch (Exception ex)
         {
@@ -219,7 +221,8 @@ public class DeoVrDeeplinkController(
     }
     // Returns VR display type
 
-    private static (string StereoMode, string ScreenType) Get3DType(Video video, StereoMode fallbackStereo, ProjectionType fallbackProjection)
+    private static (string StereoMode, string ScreenType) Get3DType(Video video, StereoMode fallbackStereo,
+        ProjectionType fallbackProjection)
     {
         return video.Video3DFormat switch
         {
@@ -243,13 +246,32 @@ public class DeoVrDeeplinkController(
             )
         };
     }
-    
+
+
+    private static string? GetImageUrlWithFallback(BaseItem item, ImageType preferredType, string baseUrl)
+    {
+        return TryGetImageUrl(item, preferredType, baseUrl) ?? TryGetImageUrl(item, ImageType.Primary, baseUrl);
+    }
+
+    private static string? TryGetImageUrl(BaseItem item, ImageType imageType, string baseUrl)
+    {
+        return Array.Find(item.ImageInfos, img => img.Type == imageType && IsValidImage(img)) != null
+            ? $"{baseUrl}/Items/{item.Id}/Images/{imageType}"
+            : null;
+    }
+
+    private static bool IsValidImage(ItemImageInfo img)
+    {
+        return !string.IsNullOrEmpty(img.Path) &&
+               (!img.IsLocalFile || img is { Width: > 0, Height: > 0 });
+    }
+
     /// <summary>
     ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
     [HttpGet("proxy/{movieId}/{mediaSourceId}/{expiry}/{signature}/stream.mp4")]
     [AllowAnonymous] //fine? has performance problems otherwise
-    public async Task ProxyStream(string movieId, string mediaSourceId ,long expiry, string signature)
+    public async Task ProxyStream(string movieId, string mediaSourceId, long expiry, string signature)
     {
         // Validate movieId format
         if (!Guid.TryParse(movieId, out _))
