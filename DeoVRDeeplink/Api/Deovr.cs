@@ -9,6 +9,7 @@ using MediaBrowser.Controller.Entities;
 using DeoVRDeeplink.Model;
 using DeoVRDeeplink.Utilities;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Model.Entities;
 
 namespace DeoVRDeeplink.Api;
 
@@ -70,7 +71,7 @@ public class DeoVrController : ControllerBase
                     Title = video.Name,
                     VideoLength = GetVideoDuration(video),
                     VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
-                    ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop"
+                    ThumbnailUrl = GetImageUrlWithFallback(video, ImageType.Backdrop, baseUrl) ?? string.Empty
                 }).ToList();
 
                 var scene = new DeoVrScene
@@ -158,4 +159,23 @@ public class DeoVrController : ControllerBase
         var req = _httpContextAccessor.HttpContext?.Request;
         return req == null ? "" : $"{req.Scheme}://{req.Host}{req.PathBase}";
     }
+    
+    private static string? GetImageUrlWithFallback(BaseItem item, ImageType preferredType, string baseUrl)
+    {
+        return TryGetImageUrl(item, preferredType, baseUrl) ?? TryGetImageUrl(item, ImageType.Primary, baseUrl);
+    }
+
+    private static string? TryGetImageUrl(BaseItem item, ImageType imageType, string baseUrl)
+    {
+        return Array.Find(item.ImageInfos, img => img.Type == imageType && IsValidImage(img)) != null
+            ? $"{baseUrl}/Items/{item.Id}/Images/{imageType}"
+            : null;
+    }
+
+    private static bool IsValidImage(ItemImageInfo img)
+    {
+        return !string.IsNullOrEmpty(img.Path) &&
+               (!img.IsLocalFile || img is { Width: > 0, Height: > 0 });
+    }
+
 }

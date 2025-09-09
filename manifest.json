@@ -92,7 +92,7 @@
               "changelog": "ThumbnailUrl fallback to Primary if Backdrop doesn't exist",
               "targetAbi": "10.10.7.0",
               "sourceUrl": "https://github.com/Toastyice/DeoVRDeeplink/releases/download/v2.2.3.0/DeoVRDeeplink-v2.2.3.0.zip",
-              "checksum": "5b8c4c1f68466ebaabb6bd8d9f7be73c",
+              "checksum": "21fe7b05bb6921aaab0a169b26e8a439",
               "timestamp": "2025-09-09T05:50:00Z"
             }
         ]

@@ -95,7 +95,7 @@ public class DeoVrDeeplinkController(
                 Title = video.Name,
                 VideoLength = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond),
                 VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
-                ThumbnailUrl = $"{baseUrl}/Items/{video.Id}/Images/Backdrop"
+                ThumbnailUrl = GetImageUrlWithFallback(video, ImageType.Backdrop, baseUrl) ?? string.Empty
             }).ToList();
         var scene = new DeoVrScene
         {
@@ -142,8 +142,7 @@ public class DeoVrDeeplinkController(
                 VideoSources = g.Select(ms => new DeoVrVideoSource
                 {
                     Resolution = ms.VideoStream?.Height ?? 2160,
-                    Url =
-                        $"{baseUrl}/deovr/proxy/{video.Id}/{ms.Id}/{expiry}/{SignUrl($"{video.Id}:{ms.Id}:{expiry}", proxySecret)}/stream.mp4"
+                    Url = $"{baseUrl}/deovr/proxy/{video.Id}/{ms.Id}/{expiry}/{SignUrl($"{video.Id}:{ms.Id}:{expiry}", proxySecret)}/stream.mp4"
                 }).ToList()
             }).ToList();
 
