@@ -255,7 +255,7 @@ public class DeoVrDeeplinkController(
     private static string? TryGetImageUrl(BaseItem item, ImageType imageType, string baseUrl)
     {
         return Array.Find(item.ImageInfos, img => img.Type == imageType && IsValidImage(img)) != null
-            ? $"{baseUrl}/Items/{item.Id}/Images/{imageType}"
+            ? $"{baseUrl}/Items/{item.Id}/Images/{imageType}?fillHeight=235&fillWidth=471&quality=96"
             : null;
     }
 
