@@ -142,12 +142,26 @@
                             options.className = 'lib-options';
                             if (!cfg.Enabled) options.style.display = 'none';
 
-                            // Random checkbox
-                            var randomChecked = cfg.Random ? ' checked' : '';
+                            // Sort By dropdown
                             options.innerHTML +=
-                                '<label class="emby-checkbox-label">' +
-                                '<input type="checkbox" class="lib-random" data-id="' + view.Id + '" is="emby-checkbox"' + randomChecked + '>' +
-                                '<span>Random</span>' +
+                                '<label>' +
+                                'Sort By: ' +
+                                '<select class="lib-sortby" data-id="' + view.Id + '" is="emby-select">' +
+                                '<option value="Name">Name</option>' +
+                                '<option value="Random">Random</option>' +
+                                '<option value="DateAdded">Date Added</option>' +
+                                '<option value="ReleaseDate">Release Date</option>' +
+                                '</select>' +
+                                '</label>';
+
+                            // Sort Order dropdown
+                            options.innerHTML +=
+                                '<label>' +
+                                'Sort Order: ' +
+                                '<select class="lib-sortorder" data-id="' + view.Id + '" is="emby-select">' +
+                                '<option value="Ascending">Ascending</option>' +
+                                '<option value="Descending">Descending</option>' +
+                                '</select>' +
                                 '</label>';
 
                             // Timeline Images checkbox
@@ -184,7 +198,10 @@
                             item.appendChild(controls);
                             list.appendChild(item);
 
-                            // Set dropdowns
+                            // Set dropdown values
+                            item.querySelector('.lib-sortby').value = cfg.SortBy || 'Name';
+                            item.querySelector('.lib-sortorder').value = cfg.SortOrder || 'Descending';
+
                             item.querySelector('.lib-projection').value = cfg.FallbackProjection || 'None';
                             item.querySelector('.lib-stereo').value = cfg.FallbackStereoMode || 'None';
 
@@ -220,7 +237,8 @@
                 enabledBoxes.forEach(function (enabledCheckbox) {
                     var id = enabledCheckbox.dataset.id;
 
-                    var randomCheckbox = document.querySelector('.lib-random[data-id="' + id + '"]');
+                    var sortBySelect = document.querySelector('.lib-sortby[data-id="' + id + '"]');
+                    var sortOrderSelect = document.querySelector('.lib-sortorder[data-id="' + id + '"]');
                     var timelineCheckbox = document.querySelector('.lib-timeline[data-id="' + id + '"]');
                     var projectionSelect = document.querySelector('.lib-projection[data-id="' + id + '"]');
                     var stereoSelect = document.querySelector('.lib-stereo[data-id="' + id + '"]');
@@ -229,7 +247,8 @@
                         Id: id,
                         Name: '',
                         Enabled: enabledCheckbox.checked,
-                        Random: randomCheckbox ? randomCheckbox.checked : false,
+                        SortBy: sortBySelect ? sortBySelect.value : 'Name',
+                        SortOrder: sortOrderSelect ? sortOrderSelect.value : 'Descending',
                         TimelineImages: timelineCheckbox ? timelineCheckbox.checked : false,
                         FallbackProjection: projectionSelect ? projectionSelect.value : 'None',
                         FallbackStereoMode: stereoSelect ? stereoSelect.value : 'None'
