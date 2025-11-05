@@ -1,16 +1,11 @@
 ﻿using System.Net.Mime;
-using System.Security.Cryptography;
-using System.Text;
 using DeoVRDeeplink.Configuration;
-using DeoVRDeeplink.Model;
 using DeoVRDeeplink.Utilities;
-using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
-using MediaBrowser.Model.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -49,13 +44,16 @@ public class DeoVrDeeplinkController(
             return NotFound();
 
         var item = _libraryManager.GetItemById(itemId);
+        var baseUrl = UrlHelper.GetServerUrl(_httpContextAccessor.HttpContext);
+
         switch (item)
         {
             case Video video:
                 try
                 {
-                    var response = BuildVideoResponse(video);
-                    return response is null ? NotFound() : Ok(response);
+                    var libConfig = GetLibraryConfigForItem(video);
+                    var response = DeoVrResponseBuilder.BuildVideoResponse(video, baseUrl, libConfig, _chapterRepository, _logger);
+                    return Ok(response);
                 }
                 catch (Exception ex)
                 {
@@ -65,8 +63,8 @@ public class DeoVrDeeplinkController(
             case Person person:
                 try
                 {
-                    var response = BuildActorResponse(person);
-                    return response is null ? NotFound() : Ok(response);
+                    var response = DeoVrResponseBuilder.BuildActorResponse(person, baseUrl, _libraryManager, _logger);
+                    return Ok(response);
                 }
                 catch (Exception ex)
                 {
@@ -77,95 +75,7 @@ public class DeoVrDeeplinkController(
                 return NotFound();
         }
     }
-
-    private DeoVrScenesResponse? BuildActorResponse(Person person)
-    {
-        var query = new InternalItemsQuery
-        {
-            PersonIds = [person.Id],
-            IncludeItemTypes = [BaseItemKind.Movie],
-            Recursive = true,
-            IsFolder = false
-        };
-        var baseUrl = UrlHelper.GetServerUrl(_httpContextAccessor.HttpContext);
-        var response = new DeoVrScenesResponse();
-        var videoList = _libraryManager
-            .GetItemList(query)
-            .OfType<Video>()
-            .Select(video => new DeoVrVideoItem
-            {
-                Title = video.Name,
-                VideoLength = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond),
-                VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
-                ThumbnailUrl = ImageHelper.TryGetImageUrl(video, baseUrl, ImageType.Backdrop)
-            }).ToList();
-        var scene = new DeoVrScene
-        {
-            Name = person.Name,
-            List = videoList
-        };
-
-        response.Scenes.Add(scene);
-        _logger.LogInformation("Added {Count} videos from library: {Person}",
-            videoList.Count, person.Name);
-        return response;
-    }
-
-    /// <summary>
-    ///     Helper to sign a proxy url token
-    /// </summary>
-    private static string SignUrl(string data, string secret)
-    {
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
-        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-        return Convert.ToHexStringLower(hash);
-    }
-
-    private DeoVrVideoResponse? BuildVideoResponse(Video video)
-    {
-        var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond);
-
-        var libConfig = GetLibraryConfigForItem(video);
-        var fallbackStereo = libConfig?.FallbackStereoMode ?? StereoMode.None;
-        var fallbackProjection = libConfig?.FallbackProjection ?? ProjectionType.None;
-
-        var baseUrl = UrlHelper.GetServerUrl(_httpContextAccessor.HttpContext);
-        var proxySecret = DeoVrDeeplinkPlugin.Instance!.Configuration.ProxySecret;
-        var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
-
-        var thumbnailUrl = ImageHelper.TryGetImageUrl(video, baseUrl, ImageType.Backdrop);
-        var (stereoMode, screenType) = Get3DType(video, fallbackStereo, fallbackProjection);
-
-        var encodings = video.GetMediaSources(false)
-            .GroupBy(ms => ms.VideoStream.Codec ?? "unknown")
-            .Select(g => new DeoVrEncoding
-            {
-                Name = g.Key,
-                VideoSources = g.Select(ms => new DeoVrVideoSource
-                {
-                    Resolution = ms.VideoStream?.Height ?? 2160,
-                    Url = $"{baseUrl}/deovr/proxy/{video.Id}/{ms.Id}/{expiry}/{SignUrl($"{video.Id}:{ms.Id}:{expiry}", proxySecret)}/stream.mp4"
-                }).ToList()
-            }).ToList();
-
-        var response = new DeoVrVideoResponse
-        {
-            Id = video.Id.GetHashCode(),
-            Title = video.Name ?? "Unknown",
-            Is3D = true,
-            VideoLength = runtimeSeconds,
-            ScreenType = screenType,
-            StereoMode = stereoMode,
-            ThumbnailUrl = thumbnailUrl!,
-            TimelinePreview = $"{baseUrl}/deovr/timeline/{video.Id}/4096_timelinePreview341x195.jpg",
-            Encodings = encodings,
-            Timestamps = GetDeoVrTimestamps(video)
-        };
-
-        return response;
-    }
-
-
+    
     private LibraryConfiguration? GetLibraryConfigForItem(BaseItem item)
     {
         var config = DeoVrDeeplinkPlugin.Instance!.Configuration;
@@ -192,59 +102,6 @@ public class DeoVrDeeplinkController(
             collectionFolder.Name, collectionFolder.Id);
         return null;
     }
-
-    /// <summary>
-    ///     Retrieves chapter timestamps, in seconds, for the item.
-    /// </summary>
-    private List<DeoVrTimestamps> GetDeoVrTimestamps(BaseItem item)
-    {
-        try
-        {
-            var chapters = _chapterRepository.GetChapters(item.Id);
-            if (chapters.Count != 0)
-                return chapters
-                    .Select(ch => new DeoVrTimestamps
-                    {
-                        ts = (int)(ch.StartPositionTicks / TimeSpan.TicksPerSecond),
-                        name = ch.Name ?? "Untitled Chapter"
-                    })
-                    .ToList();
-            _logger.LogDebug("No chapters found for item {ItemName}", item.Name);
-            return [];
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting chapters for item {ItemName}", item.Name);
-            return [];
-        }
-    }
-    // Returns VR display type
-
-    private static (string StereoMode, string ScreenType) Get3DType(Video video, StereoMode fallbackStereo,
-        ProjectionType fallbackProjection)
-    {
-        return video.Video3DFormat switch
-        {
-            Video3DFormat.FullSideBySide => ("sbs", "sphere"),
-            Video3DFormat.FullTopAndBottom => ("tb", "sphere"),
-            Video3DFormat.HalfSideBySide => ("sbs", "dome"),
-            Video3DFormat.HalfTopAndBottom => ("tb", "dome"),
-            _ => (
-                fallbackStereo switch
-                {
-                    StereoMode.SideBySide => "sbs",
-                    StereoMode.TopBottom => "tb",
-                    _ => "off"
-                },
-                fallbackProjection switch
-                {
-                    ProjectionType.Projection180 => "dome",
-                    ProjectionType.Projection360 => "sphere",
-                    _ => "flat"
-                }
-            )
-        };
-    }
     
     /// <summary>
     ///     Securely proxies video streams with signed, expiring tokens.
@@ -260,25 +117,14 @@ public class DeoVrDeeplinkController(
             await Response.Body.FlushAsync();
             return;
         }
-
-        // Validate expiry
+        
+        // Validate signature and expiry
         var proxySecret = DeoVrDeeplinkPlugin.Instance?.Configuration.ProxySecret ?? "default-secret";
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        if (now > expiry)
-        {
-            Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await Response.Body.FlushAsync();
-            return;
-        }
-
-        // Validate signature
-        var dataToSign = $"{movieId}:{mediaSourceId}:{expiry}";
-        var expected = SignUrl(dataToSign, proxySecret);
-        if (!string.Equals(signature, expected, StringComparison.OrdinalIgnoreCase))
+        if (!SignatureValidator.ValidateSignature(movieId, mediaSourceId, expiry, signature, proxySecret))
         {
             _logger.LogWarning(
-                "Proxy signature mismatch. Provided: {UserSig}, Expected: {ExpectedSig}, movieId: {MovieId}, mediaSourceId: {mediaSourceId}, expiry: {Expiry}",
-                signature, expected, movieId, mediaSourceId, expiry);
+                "Proxy authentication failed for movieId: {MovieId}, mediaSourceId: {MediaSourceId}",
+                movieId, mediaSourceId);
 
             Response.StatusCode = StatusCodes.Status401Unauthorized;
             await Response.Body.FlushAsync();
