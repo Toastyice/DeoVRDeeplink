@@ -87,7 +87,7 @@ public class DeoVrDeeplinkController(
             Recursive = true,
             IsFolder = false
         };
-        var baseUrl = GetServerUrl();
+        var baseUrl = UrlHelper.GetServerUrl(_httpContextAccessor.HttpContext);
         var response = new DeoVrScenesResponse();
         var videoList = _libraryManager
             .GetItemList(query)
@@ -97,7 +97,7 @@ public class DeoVrDeeplinkController(
                 Title = video.Name,
                 VideoLength = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond),
                 VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
-                ThumbnailUrl = GetImageUrlWithFallback(video, ImageType.Backdrop, baseUrl) ?? string.Empty
+                ThumbnailUrl = ImageHelper.TryGetImageUrl(video, baseUrl, ImageType.Backdrop)
             }).ToList();
         var scene = new DeoVrScene
         {
@@ -118,7 +118,7 @@ public class DeoVrDeeplinkController(
     {
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-        return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+        return Convert.ToHexStringLower(hash);
     }
 
     private DeoVrVideoResponse? BuildVideoResponse(Video video)
@@ -129,11 +129,11 @@ public class DeoVrDeeplinkController(
         var fallbackStereo = libConfig?.FallbackStereoMode ?? StereoMode.None;
         var fallbackProjection = libConfig?.FallbackProjection ?? ProjectionType.None;
 
-        var baseUrl = GetServerUrl();
+        var baseUrl = UrlHelper.GetServerUrl(_httpContextAccessor.HttpContext);
         var proxySecret = DeoVrDeeplinkPlugin.Instance!.Configuration.ProxySecret;
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
 
-        var thumbnailUrl = GetImageUrlWithFallback(video, ImageType.Backdrop, baseUrl);
+        var thumbnailUrl = ImageHelper.TryGetImageUrl(video, baseUrl, ImageType.Backdrop);
         var (stereoMode, screenType) = Get3DType(video, fallbackStereo, fallbackProjection);
 
         var encodings = video.GetMediaSources(false)
@@ -159,8 +159,7 @@ public class DeoVrDeeplinkController(
             ThumbnailUrl = thumbnailUrl!,
             TimelinePreview = $"{baseUrl}/deovr/timeline/{video.Id}/4096_timelinePreview341x195.jpg",
             Encodings = encodings,
-            Timestamps = GetDeoVrTimestamps(video),
-            Corrections = new DeoVrCorrections()
+            Timestamps = GetDeoVrTimestamps(video)
         };
 
         return response;
@@ -246,26 +245,7 @@ public class DeoVrDeeplinkController(
             )
         };
     }
-
-
-    private static string? GetImageUrlWithFallback(BaseItem item, ImageType preferredType, string baseUrl)
-    {
-        return TryGetImageUrl(item, preferredType, baseUrl) ?? TryGetImageUrl(item, ImageType.Primary, baseUrl);
-    }
-
-    private static string? TryGetImageUrl(BaseItem item, ImageType imageType, string baseUrl)
-    {
-        return Array.Find(item.ImageInfos, img => img.Type == imageType && IsValidImage(img)) != null
-            ? $"{baseUrl}/Items/{item.Id}/Images/{imageType}?fillHeight=235&fillWidth=471&quality=96"
-            : null;
-    }
-
-    private static bool IsValidImage(ItemImageInfo img)
-    {
-        return !string.IsNullOrEmpty(img.Path) &&
-               (!img.IsLocalFile || img is { Width: > 0, Height: > 0 });
-    }
-
+    
     /// <summary>
     ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
@@ -352,29 +332,6 @@ public class DeoVrDeeplinkController(
             _logger.LogDebug("Client disconnected during streaming for movie {MovieId}", movieId);
             // This is expected when client disconnects
         }
-    }
-
-    // Gets accessible server URL from current context
-    private string GetServerUrl()
-    {
-        var req = _httpContextAccessor.HttpContext?.Request;
-        if (req == null)
-        {
-            return string.Empty;
-        }
-
-        // Get the scheme from the X-Forwarded-Proto header if it exists.
-        // This header is set by the reverse proxy (Nginx in this case) to indicate
-        // the original protocol used by the client (e.g., "https").
-        var forwardedScheme = req.Headers["X-Forwarded-Proto"].FirstOrDefault();
-
-        // Use the forwarded scheme if it's available and not empty, otherwise fall back 
-        // to the scheme of the direct request. This ensures the correct scheme is used
-        // whether the service is accessed directly or through a reverse proxy.
-        var scheme = !string.IsNullOrEmpty(forwardedScheme) ? forwardedScheme : req.Scheme;
-
-        // Construct the full server URL using the determined scheme, host, and path base.
-        return $"{scheme}://{req.Host}{req.PathBase}";
     }
 
     private string GetInternalBaseUrl()

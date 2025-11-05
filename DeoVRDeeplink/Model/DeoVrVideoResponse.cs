@@ -66,12 +66,6 @@ public class DeoVrVideoResponse
     /// </summary>
     [JsonPropertyName("timeStamps")]
     public List<DeoVrTimestamps> Timestamps { get; set; } = [];
-
-    /// <summary>
-    /// Gets or sets the video corrections settings.
-    /// </summary>
-    [JsonPropertyName("corrections")]
-    public DeoVrCorrections Corrections { get; set; } = new();
 }
 
 /// <summary>
@@ -126,40 +120,4 @@ public class DeoVrTimestamps
     /// </summary>
     [JsonPropertyName("name")]
     public string? name { get; set; }
-}
-
-/// <summary>
-/// Contains video correction settings for DeoVR.
-/// </summary>
-public class DeoVrCorrections
-{
-    /// <summary>
-    /// Gets or sets the X correction value.
-    /// </summary>
-    [JsonPropertyName("x")]
-    public int X { get; set; }
-
-    /// <summary>
-    /// Gets or sets the Y correction value.
-    /// </summary>
-    [JsonPropertyName("y")]
-    public int Y { get; set; }
-
-    /// <summary>
-    /// Gets or sets the brightness correction value.
-    /// </summary>
-    [JsonPropertyName("br")]
-    public int Brightness { get; set; }
-
-    /// <summary>
-    /// Gets or sets the contrast correction value.
-    /// </summary>
-    [JsonPropertyName("cont")]
-    public int Contrast { get; set; }
-
-    /// <summary>
-    /// Gets or sets the saturation correction value.
-    /// </summary>
-    [JsonPropertyName("sat")]
-    public int Saturation { get; set; }
 }
