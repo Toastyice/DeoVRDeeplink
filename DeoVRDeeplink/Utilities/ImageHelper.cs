@@ -25,6 +25,6 @@ public static class ImageHelper
     /// </summary>
     /// <param name="img">The image info to validate.</param>
     /// <returns>True if the image is valid, false otherwise.</returns>
-    private static bool IsValidImage(ItemImageInfo img) =>
+    private static bool IsValidImage(ItemImageInfo img) => 
         !string.IsNullOrEmpty(img.Path) && (!img.IsLocalFile || img is { Width: > 0, Height: > 0 });
 }

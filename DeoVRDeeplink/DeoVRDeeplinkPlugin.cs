@@ -14,7 +14,7 @@ public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHas
 {
     private readonly ILogger<DeoVrDeeplinkPlugin> _logger;
     private readonly IServerConfigurationManager _configurationManager;
-
+    public static string ProxySecret { get; } = Guid.NewGuid().ToString("N");
     public static DeoVrDeeplinkPlugin? Instance { get; private set; }
     public override string Name => "DeoVRDeeplink";
     public override Guid Id => Guid.Parse("e7bea589-e339-490c-8738-596e42b9042e");

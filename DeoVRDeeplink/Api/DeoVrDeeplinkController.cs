@@ -1,7 +1,6 @@
 ﻿using System.Net.Mime;
 using DeoVRDeeplink.Configuration;
 using DeoVRDeeplink.Utilities;
-using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -24,10 +23,10 @@ public class DeoVrDeeplinkController(
     IItemRepository itemRepository,
     IChapterRepository chapterRepository) : ControllerBase
 {
+    private readonly IChapterRepository _chapterRepository = chapterRepository;
     private readonly IServerConfigurationManager _config = config;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly IItemRepository _itemRepository = itemRepository;
-    private readonly IChapterRepository _chapterRepository = chapterRepository;
     private readonly ILibraryManager _libraryManager = libraryManager;
     private readonly ILogger<DeoVrDeeplinkController> _logger = logger;
     private readonly IMediaSourceManager _mediaSourceManager = mediaSourceManager;
@@ -52,7 +51,8 @@ public class DeoVrDeeplinkController(
                 try
                 {
                     var libConfig = GetLibraryConfigForItem(video);
-                    var response = DeoVrResponseBuilder.BuildVideoResponse(video, baseUrl, libConfig, _chapterRepository, _logger);
+                    var response =
+                        DeoVrResponseBuilder.BuildVideoResponse(video, baseUrl, libConfig, _chapterRepository, _logger);
                     return Ok(response);
                 }
                 catch (Exception ex)
@@ -75,21 +75,19 @@ public class DeoVrDeeplinkController(
                 return NotFound();
         }
     }
-    
+
     private LibraryConfiguration? GetLibraryConfigForItem(BaseItem item)
     {
         var config = DeoVrDeeplinkPlugin.Instance!.Configuration;
         var libraries = config.Libraries;
-
-        // Jellyfin gives you the containing library (CollectionFolder)
+        
         var collectionFolder = _libraryManager.GetCollectionFolders(item).FirstOrDefault();
         if (collectionFolder == null)
         {
             _logger.LogWarning("No collection folder found for item {ItemName} (Id: {ItemId})", item.Name, item.Id);
             return null;
         }
-
-        // Match your plugin’s configured libraries by GUID
+        
         var lib = libraries.FirstOrDefault(l => l.Id == collectionFolder.Id);
         if (lib != null)
         {
@@ -102,15 +100,24 @@ public class DeoVrDeeplinkController(
             collectionFolder.Name, collectionFolder.Id);
         return null;
     }
-    
+
     /// <summary>
     ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
-    [HttpGet("proxy/{movieId}/{mediaSourceId}/{expiry}/{signature}/stream.mp4")]
-    [AllowAnonymous] //fine? has performance problems otherwise
-    public async Task ProxyStream(string movieId, string mediaSourceId, long expiry, string signature)
+    [HttpGet("proxy/{token}/stream.mp4")]
+    [AllowAnonymous]
+    public async Task ProxyStream(string token)
     {
-        // Validate movieId format
+        // Validate and extract token
+        if (!SignatureValidator.ValidateAndExtractToken(token, DeoVrDeeplinkPlugin.ProxySecret,
+                out var movieId, out var mediaSourceId, out _))
+        {
+            _logger.LogWarning("Proxy authentication failed for token");
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await Response.Body.FlushAsync();
+            return;
+        }
+        
         if (!Guid.TryParse(movieId, out _))
         {
             Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -118,21 +125,7 @@ public class DeoVrDeeplinkController(
             return;
         }
         
-        // Validate signature and expiry
-        var proxySecret = DeoVrDeeplinkPlugin.Instance?.Configuration.ProxySecret ?? "default-secret";
-        if (!SignatureValidator.ValidateSignature(movieId, mediaSourceId, expiry, signature, proxySecret))
-        {
-            _logger.LogWarning(
-                "Proxy authentication failed for movieId: {MovieId}, mediaSourceId: {MediaSourceId}",
-                movieId, mediaSourceId);
-
-            Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await Response.Body.FlushAsync();
-            return;
-        }
-
-        // Prepare Jellyfin endpoint (should be local for performance)
-        var jellyfinInternalBaseUrl = GetInternalBaseUrl();
+        var jellyfinInternalBaseUrl = UrlHelper.GetInternalBaseUrl(_config);
         var jellyfinUrl =
             $"{jellyfinInternalBaseUrl}/Videos/{movieId}/stream.mp4?Static=true&mediaSourceId={mediaSourceId}&deviceId=DeoVRDeeplink";
 
@@ -178,18 +171,6 @@ public class DeoVrDeeplinkController(
             _logger.LogDebug("Client disconnected during streaming for movie {MovieId}", movieId);
             // This is expected when client disconnects
         }
-    }
-
-    private string GetInternalBaseUrl()
-    {
-        var options = _config.GetNetworkConfiguration();
-        var httpPort = options.InternalHttpPort;
-        var httpsPort = options.InternalHttpsPort;
-
-        var protocol = options.RequireHttps ? "https" : "http";
-        var port = options.RequireHttps ? httpsPort : httpPort;
-
-        return $"{protocol}://localhost:{port}";
     }
 }
 

@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using MediaBrowser.Common.Net;
+using MediaBrowser.Controller.Configuration;
+using Microsoft.AspNetCore.Http;
 
 namespace DeoVRDeeplink.Utilities;
 
@@ -33,5 +35,19 @@ public static class UrlHelper
 
         // Construct the full server URL using the determined scheme, host, and path base.
         return $"{scheme}://{req.Host}{req.PathBase}";
+    }
+    
+    /// <summary>
+    /// Gets the internal Jellyfin base URL (used for local requests).
+    /// </summary>
+    /// <param name="config">Server configuration manager.</param>
+    /// <returns>Internal base URL string.</returns>
+    public static string GetInternalBaseUrl(IServerConfigurationManager config)
+    {
+        var options = config.GetNetworkConfiguration();
+        var protocol = options.RequireHttps ? "https" : "http";
+        var port = options.RequireHttps ? options.InternalHttpsPort : options.InternalHttpPort;
+
+        return $"{protocol}://localhost:{port}";
     }
 }

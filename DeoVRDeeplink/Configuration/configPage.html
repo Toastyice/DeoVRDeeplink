@@ -36,16 +36,6 @@
     <div data-role="content">
         <div class="content-primary">
             <form id="DeoVRDeeplinkConfigForm">
-                <!-- DeoVR Configuration Fields -->
-                <div class="verticalSection">
-                    <h2 class="sectionTitle">DeoVR Configuration</h2>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ProxySecret">Proxy Signing Secret</label>
-                        <input id="ProxySecret" name="ProxySecret" type="text" is="emby-input" required />
-                        <div class="fieldDescription">Do not share. Used for signing video proxy links.</div>
-                    </div>
-                </div>
-
                 <!-- IP Restriction Settings -->
                 <div class="verticalSection">
                     <h2 class="sectionTitle">IP Restriction</h2>
@@ -99,7 +89,6 @@
 
                 ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
                     // Load top-level config
-                    document.querySelector('#ProxySecret').value = config.ProxySecret || '';
                     document.querySelector('#EnableIpRestriction').checked = config.EnableIpRestriction || false;
                     document.querySelector('#ipRangesContainer').classList.toggle('hide', !config.EnableIpRestriction);
                     document.querySelector('#AllowedIpRanges').value = (config.AllowedIpRanges || []).join('\n');
@@ -226,7 +215,6 @@
             Dashboard.showLoadingMsg();
 
             ApiClient.getPluginConfiguration(DeoVRDeeplinkConfig.pluginUniqueId).then(function (config) {
-                config.ProxySecret = document.querySelector('#ProxySecret').value;
                 config.EnableIpRestriction = document.querySelector('#EnableIpRestriction').checked;
                 config.AllowedIpRanges = document.querySelector('#AllowedIpRanges').value.split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l; });
 

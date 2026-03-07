@@ -134,7 +134,7 @@ public class VideoProcessor
 
         // Log the complete FFmpeg command
         var fullCommand = $"{_mediaEncoder.EncoderPath} {argString}";
-        _logger.LogInformation("Executing FFmpeg command: {FullCommand}", fullCommand);
+        _logger.LogDebug("Executing FFmpeg command: {FullCommand}", fullCommand);
 
         try
         {

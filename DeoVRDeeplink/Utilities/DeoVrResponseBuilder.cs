@@ -64,7 +64,7 @@ public static class DeoVrResponseBuilder
         ILogger logger)
     {
         var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond);
-        var proxySecret = DeoVrDeeplinkPlugin.Instance!.Configuration.ProxySecret;
+        var proxySecret = DeoVrDeeplinkPlugin.ProxySecret;
         var expiry = DateTimeOffset.UtcNow.AddSeconds(runtimeSeconds * 2).ToUnixTimeSeconds();
 
         var fallbackStereo = libConfig?.FallbackStereoMode ?? StereoMode.None;
@@ -81,7 +81,7 @@ public static class DeoVrResponseBuilder
                 VideoSources = g.Select(ms => new DeoVrVideoSource
                 {
                     Resolution = ms.VideoStream?.Height ?? 2160,
-                    Url = $"{baseUrl}/deovr/proxy/{video.Id}/{ms.Id}/{expiry}/{SignatureValidator.SignUrl($"{video.Id}:{ms.Id}:{expiry}", proxySecret)}/stream.mp4"
+                    Url = $"{baseUrl}/deovr/proxy/{SignatureValidator.CreateSignedToken(video.Id.ToString(), ms.Id, expiry, proxySecret)}/stream.mp4"
                 }).ToList()
             }).ToList();
 

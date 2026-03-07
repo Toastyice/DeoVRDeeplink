@@ -34,8 +34,7 @@ public class DeoVrController : ControllerBase
         _httpContextAccessor = httpContextAccessor;
         _config = config;
     }
-
-
+    
     /// <summary>
     ///     Returns a JSON structure compatible with DeoVR deeplinks
     /// </summary>
