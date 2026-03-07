@@ -3,85 +3,44 @@ using System.Text;
 
 namespace DeoVRDeeplink.Utilities;
 
+/// <summary>
+/// Provides utility methods for generating and validating secure, time-limited HMAC signatures for video streaming.
+/// </summary>
 public static class SignatureValidator
 {
     /// <summary>
-    /// Signs data with HMAC-SHA256 and returns lowercase hex string
+    /// Generates the raw payload string used for signing by concatenating the source parameters.
     /// </summary>
-    private static string SignUrl(string data, string secret)
-    {
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
-        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-        return Convert.ToHexStringLower(hash);
-    }
+    private static string GetSignaturePayload(object movieId, object mediaSourceId, long expiry) 
+        => $"{movieId}:{mediaSourceId}:{expiry}";
 
     /// <summary>
-    /// Creates a signed token containing movieId, mediaSourceId, and expiry
-    /// Format: {movieId}:{mediaSourceId}:{expiry}:{signature}
+    /// Computes an HMAC-SHA256 hash of the provided data using the specified secret.
     /// </summary>
-    public static string CreateSignedToken(
-        string movieId,
-        string mediaSourceId,
-        long expiry,
-        string secret)
-    {
-        var dataToSign = $"{movieId}:{mediaSourceId}:{expiry}";
-        var signature = SignUrl(dataToSign, secret);
-        
-        // Encode the data and signature together
-        var token = $"{movieId}:{mediaSourceId}:{expiry}:{signature}";
-        return Convert.ToBase64String(Encoding.UTF8.GetBytes(token))
-            .Replace('+', '-')
-            .Replace('/', '_')
-            .TrimEnd('='); // URL-safe base64
-    }
+    private static string SignUrl(string data, string secret) 
+        => Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(data)));
 
     /// <summary>
-    /// Validates and extracts data from a signed token
+    /// Generates a complete HMAC-SHA256 signature for a video stream request.
     /// </summary>
-    public static bool ValidateAndExtractToken(
-        string token,
-        string secret,
-        out string movieId,
-        out string mediaSourceId,
-        out long expiry)
-    {
-        movieId = string.Empty;
-        mediaSourceId = string.Empty;
-        expiry = 0;
+    public static string GenerateSignature(object movieId, object mediaSourceId, long expiry, string secret) 
+        => SignUrl(GetSignaturePayload(movieId, mediaSourceId, expiry), secret);
 
-        try
-        {
-            // Decode URL-safe base64
-            var base64 = token.Replace('-', '+').Replace('_', '/');
-            var padding = (4 - base64.Length % 4) % 4;
-            base64 += new string('=', padding);
-            
-            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(base64));
-            var parts = decoded.Split(':');
-            
-            if (parts.Length != 4)
-                return false;
+    /// <summary>
+    /// Determines whether a given Unix timestamp is in the past compared to the current UTC time.
+    /// </summary>
+    public static bool IsExpired(long expiry) 
+        => DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiry;
 
-            movieId = parts[0];
-            mediaSourceId = parts[1];
-            expiry = long.Parse(parts[2]);
-            var providedSignature = parts[3];
-
-            // Check expiry first (fast check)
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            if (now > expiry)
-                return false;
-
-            // Validate signature
-            var dataToSign = $"{movieId}:{mediaSourceId}:{expiry}";
-            var expectedSignature = SignUrl(dataToSign, secret);
-            
-            return string.Equals(providedSignature, expectedSignature, StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    /// <summary>
+    /// Validates a provided signature and outputs the expected signature for logging.
+    /// </summary>
+    public static bool TryValidateSignature(
+        object movieId, 
+        object mediaSourceId, 
+        long expiry, 
+        string signature, 
+        string secret, 
+        out string expectedSignature) 
+        => string.Equals(signature, expectedSignature = GenerateSignature(movieId, mediaSourceId, expiry, secret), StringComparison.OrdinalIgnoreCase);
 }

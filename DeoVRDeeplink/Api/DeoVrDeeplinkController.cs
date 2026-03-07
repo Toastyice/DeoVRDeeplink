@@ -104,23 +104,33 @@ public class DeoVrDeeplinkController(
     /// <summary>
     ///     Securely proxies video streams with signed, expiring tokens.
     /// </summary>
-    [HttpGet("proxy/{token}/stream.mp4")]
+    [HttpGet("proxy/{movieId}/{mediaSourceId}/{expiry}/{signature}/stream.mp4")]
     [AllowAnonymous]
-    public async Task ProxyStream(string token)
+    public async Task ProxyStream(string movieId, string mediaSourceId, long expiry, string signature)
     {
-        // Validate and extract token
-        if (!SignatureValidator.ValidateAndExtractToken(token, DeoVrDeeplinkPlugin.ProxySecret,
-                out var movieId, out var mediaSourceId, out _))
+        if (!Guid.TryParse(movieId, out _))
         {
-            _logger.LogWarning("Proxy authentication failed for token");
-            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            Response.StatusCode = StatusCodes.Status400BadRequest;
             await Response.Body.FlushAsync();
             return;
         }
         
-        if (!Guid.TryParse(movieId, out _))
+        if (SignatureValidator.IsExpired(expiry))
         {
-            Response.StatusCode = StatusCodes.Status400BadRequest;
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await Response.Body.FlushAsync();
+            return;
+        }
+
+        // Validate signature
+        var proxySecret = DeoVrDeeplinkPlugin.ProxySecret;
+        if (!SignatureValidator.TryValidateSignature(movieId, mediaSourceId, expiry, signature, proxySecret, out var expectedSig))
+        {
+            _logger.LogWarning(
+                "Proxy signature mismatch. Provided: {UserSig}, Expected: {ExpectedSig}, movieId: {MovieId}, mediaSourceId: {mediaSourceId}, expiry: {Expiry}",
+                signature, expectedSig, movieId, mediaSourceId, expiry);
+
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
             await Response.Body.FlushAsync();
             return;
         }
