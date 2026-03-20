@@ -68,14 +68,10 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Initializes a new instance of the <see cref="PluginConfiguration"/> class.</summary>
     public PluginConfiguration()
     {
-        ProxySecret = Guid.NewGuid().ToString("N");
         AllowedIpRanges = [];
         EnableIpRestriction = false;
         Libraries = new List<LibraryConfiguration>();
     }
-
-    /// <summary>Gets or sets the secret for signing proxy tokens.</summary>
-    public string ProxySecret { get; set; }
     
     /// <summary>Gets or sets the list of allowed IP ranges in CIDR notation (e.g., "192.168.1.0/24", "10.0.0.0/8", "127.0.0.1/32").</summary>
     public List<string> AllowedIpRanges { get; set; }

@@ -66,9 +66,9 @@ Allows direct browsing when you open jellyfin with DeoVR.
   - `/deovr`
   - `/deovr/ClientScript`
   - `/deovr/Icon`
-  - `/deovr/json/<MovieUUID>/response.json`
-  - `/deovr/proxy/<MovieUUID>/<Expiry>/<Signature>/stream.mp4`
-  - `/deovr/timeline/<MovieUUID>/4096_timelinePreview341x195.jpg`
+  - `/deovr/json/{MovieUUID}/response.json`
+  - `/deovr/proxy/{MovieUUID}/{mediaSourceId}/{Expiry}/{Signature}/stream.mp4`
+  - `/deovr/timeline/{MovieUUID}/4096_timelinePreview341x195.jpg`
 
 ---
 

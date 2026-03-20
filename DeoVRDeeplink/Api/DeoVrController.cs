@@ -34,8 +34,7 @@ public class DeoVrController : ControllerBase
         _httpContextAccessor = httpContextAccessor;
         _config = config;
     }
-
-
+    
     /// <summary>
     ///     Returns a JSON structure compatible with DeoVR deeplinks
     /// </summary>
@@ -46,7 +45,7 @@ public class DeoVrController : ControllerBase
     {
         try
         {
-            var baseUrl = GetServerUrl();
+            var baseUrl = UrlHelper.GetServerUrl(_httpContextAccessor.HttpContext);
             var configLibraries = DeoVrDeeplinkPlugin.Instance!.Configuration.Libraries;
             var librariesWithConfig = GetEnabledLibrariesWithConfig(configLibraries).ToArray();
 
@@ -76,7 +75,7 @@ public class DeoVrController : ControllerBase
                     Title = video.Name,
                     VideoLength = GetVideoDuration(video),
                     VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
-                    ThumbnailUrl = GetImageUrlWithFallback(video, ImageType.Backdrop, baseUrl) ?? string.Empty
+                    ThumbnailUrl = ImageHelper.TryGetImageUrl(video, baseUrl, ImageType.Backdrop)
                 }).ToList();
 
                 _logger.LogDebug("Added {Count} videos from library: {LibraryName}",
@@ -165,38 +164,4 @@ public class DeoVrController : ControllerBase
         video is Video { RunTimeTicks: not null } ticks  
             ? (int)(ticks.RunTimeTicks.Value / TimeSpan.TicksPerSecond) 
             : 0;
-
-    // Gets accessible server URL from current context
-    private string GetServerUrl()
-    {
-        var req = _httpContextAccessor.HttpContext?.Request;
-        if (req == null)
-        {
-            return string.Empty;
-        }
-
-        // Get the scheme from the X-Forwarded-Proto header if it exists.
-        // This header is set by the reverse proxy (Nginx in this case) to indicate
-        // the original protocol used by the client (e.g., "https").
-        var forwardedScheme = req.Headers["X-Forwarded-Proto"].FirstOrDefault();
-
-        // Use the forwarded scheme if it's available and not empty, otherwise fall back 
-        // to the scheme of the direct request. This ensures the correct scheme is used
-        // whether the service is accessed directly or through a reverse proxy.
-        var scheme = !string.IsNullOrEmpty(forwardedScheme) ? forwardedScheme : req.Scheme;
-
-        // Construct the full server URL using the determined scheme, host, and path base.
-        return $"{scheme}://{req.Host}{req.PathBase}";
-    }
-
-    private static string? GetImageUrlWithFallback(BaseItem item, ImageType preferredType, string baseUrl) => 
-        TryGetImageUrl(item, preferredType, baseUrl) ?? TryGetImageUrl(item, ImageType.Primary, baseUrl);
-    
-    private static string? TryGetImageUrl(BaseItem item, ImageType imageType, string baseUrl) => 
-        Array.Find(item.ImageInfos, img => img.Type == imageType && IsValidImage(img)) != null
-            ? $"{baseUrl}/Items/{item.Id}/Images/{imageType}?fillHeight=235&fillWidth=471&quality=96"
-            : null;
-    
-    private static bool IsValidImage(ItemImageInfo img) => 
-        !string.IsNullOrEmpty(img.Path) && (!img.IsLocalFile || img is { Width: > 0, Height: > 0 });
 }
