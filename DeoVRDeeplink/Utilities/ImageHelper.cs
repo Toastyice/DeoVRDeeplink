@@ -4,27 +4,47 @@ using MediaBrowser.Model.Entities;
 namespace DeoVRDeeplink.Utilities;
 
 /// <summary>
-/// Helper class for image-related operations.
+/// Provides helpers for selecting and formatting item images.
 /// </summary>
 public static class ImageHelper
 {
     /// <summary>
-    /// Attempts to get an image URL for a specific image type.
+    /// Returns the best available image URL for an item.
+    /// 
+    /// Priority:
+    /// 1. Backdrop (preferred for VR – typically 16:9)
+    /// 2. Primary (fallback)
+    /// 
+    /// Large images are downscaled to a consistent 16:9 format.
     /// </summary>
-    /// <param name="item">The item to get the image for.</param>
-    /// <param name="imageType">The image type to retrieve.</param>
-    /// <param name="baseUrl">The base server URL.</param>
-    /// <returns>The image URL, or null if the image type is not available or invalid.</returns>
-    public static string TryGetImageUrl(BaseItem item, string baseUrl, ImageType imageType = ImageType.Primary) =>
-        Array.Find(item.ImageInfos, img => img.Type == imageType && IsValidImage(img)) != null
-            ? $"{baseUrl}/Items/{item.Id}/Images/{imageType}?fillHeight=235&fillWidth=471&quality=96"
-            : string.Empty;
-    
+    public static string GetImageUrl(BaseItem item, string baseUrl)
+    {
+        const int maxSize = 1024;
+        var image = new[] { ImageType.Backdrop, ImageType.Primary }
+            .Select(type => new
+            {
+                Type = type,
+                Info = Array.Find(item.ImageInfos, i => i.Type == type && IsValid(i))
+            })
+            .FirstOrDefault(x => x.Info != null);
+
+        if (image?.Info == null)
+            return string.Empty;
+
+        var img = image.Info;
+
+        // Small images: return as-is
+        if (img.Width is > 0 and <= maxSize && img.Height <= maxSize)
+            return $"{baseUrl}/Items/{item.Id}/Images/{image.Type}";
+
+        // Large images: enforce 16:9 scaling for consistent VR layout
+        return $"{baseUrl}/Items/{item.Id}/Images/{image.Type}?fillWidth=960&fillHeight=540&quality=90";
+    }
+
     /// <summary>
-    /// Validates whether an image info object represents a valid image.
+    /// Basic sanity check for usable images.
     /// </summary>
-    /// <param name="img">The image info to validate.</param>
-    /// <returns>True if the image is valid, false otherwise.</returns>
-    private static bool IsValidImage(ItemImageInfo img) => 
-        !string.IsNullOrEmpty(img.Path) && (!img.IsLocalFile || img is { Width: > 0, Height: > 0 });
+    private static bool IsValid(ItemImageInfo img) =>
+        !string.IsNullOrEmpty(img.Path) &&
+        (!img.IsLocalFile || (img.Width > 0 && img.Height > 0));
 }
