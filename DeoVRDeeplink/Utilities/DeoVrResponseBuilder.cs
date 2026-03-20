@@ -7,6 +7,10 @@ using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
+#if JF_10_11
+using Jellyfin.Database;
+#endif
+
 namespace DeoVRDeeplink.Utilities;
 
 public static class DeoVrResponseBuilder
@@ -15,7 +19,7 @@ public static class DeoVrResponseBuilder
     /// Builds a DeoVR response for an actor/person showing all their videos
     /// </summary>
     public static DeoVrScenesResponse BuildActorResponse(
-        Person person, 
+        Person person,
         string baseUrl,
         ILibraryManager libraryManager,
         ILogger logger)
@@ -47,9 +51,10 @@ public static class DeoVrResponseBuilder
         };
 
         response.Scenes.Add(scene);
+
         logger.LogInformation("Added {Count} videos from library: {Person}",
             videoList.Count, person.Name);
-        
+
         return response;
     }
 
@@ -57,10 +62,14 @@ public static class DeoVrResponseBuilder
     /// Builds a DeoVR response for a video with all metadata and encodings
     /// </summary>
     public static DeoVrVideoResponse BuildVideoResponse(
-        Video video, 
-        string baseUrl, 
+        Video video,
+        string baseUrl,
         LibraryConfiguration? libConfig,
+#if JF_10_11
         IChapterRepository chapterRepository,
+#else
+        IItemRepository itemRepository,
+#endif
         ILogger logger)
     {
         var runtimeSeconds = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond);
@@ -96,7 +105,12 @@ public static class DeoVrResponseBuilder
             ThumbnailUrl = thumbnailUrl!,
             TimelinePreview = $"{baseUrl}/deovr/timeline/{video.Id}/4096_timelinePreview341x195.jpg",
             Encodings = encodings,
-            Timestamps = GetDeoVrTimestamps(video, chapterRepository, logger)
+            Timestamps =
+#if JF_10_11
+                GetDeoVrTimestamps(video, chapterRepository, logger)
+#else
+                GetDeoVrTimestamps(video, itemRepository, logger)
+#endif
         };
 
         return response;
@@ -106,7 +120,7 @@ public static class DeoVrResponseBuilder
     /// Determines VR stereo mode and screen type based on video format and fallbacks
     /// </summary>
     private static (string StereoMode, string ScreenType) Get3DType(
-        Video video, 
+        Video video,
         StereoMode fallbackStereo,
         ProjectionType fallbackProjection)
     {
@@ -136,6 +150,7 @@ public static class DeoVrResponseBuilder
     /// <summary>
     /// Retrieves chapter timestamps, in seconds, for the item
     /// </summary>
+#if JF_10_11
     private static List<DeoVrTimestamps> GetDeoVrTimestamps(
         BaseItem item,
         IChapterRepository chapterRepository,
@@ -144,6 +159,7 @@ public static class DeoVrResponseBuilder
         try
         {
             var chapters = chapterRepository.GetChapters(item.Id);
+
             if (chapters.Count != 0)
             {
                 return chapters
@@ -154,7 +170,7 @@ public static class DeoVrResponseBuilder
                     })
                     .ToList();
             }
-            
+
             logger.LogDebug("No chapters found for item {ItemName}", item.Name);
             return [];
         }
@@ -164,4 +180,35 @@ public static class DeoVrResponseBuilder
             return [];
         }
     }
+#else
+    private static List<DeoVrTimestamps> GetDeoVrTimestamps(
+        BaseItem item,
+        IItemRepository itemRepository,
+        ILogger logger)
+    {
+        try
+        {
+            var chapters = itemRepository.GetChapters(item);
+
+            if (chapters != null && chapters.Count != 0)
+            {
+                return chapters
+                    .Select(ch => new DeoVrTimestamps
+                    {
+                        ts = (int)(ch.StartPositionTicks / TimeSpan.TicksPerSecond),
+                        name = ch.Name ?? "Untitled Chapter"
+                    })
+                    .ToList();
+            }
+
+            logger.LogDebug("No chapters found for item {ItemName}", item.Name);
+            return [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting chapters for item {ItemName}", item.Name);
+            return [];
+        }
+    }
+#endif
 }

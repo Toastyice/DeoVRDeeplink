@@ -20,10 +20,15 @@ public class DeoVrDeeplinkController(
     IMediaSourceManager mediaSourceManager,
     IHttpContextAccessor httpContextAccessor,
     IServerConfigurationManager config,
-    IItemRepository itemRepository,
-    IChapterRepository chapterRepository) : ControllerBase
+#if JF_10_11
+    IChapterRepository chapterRepository,
+#endif
+    IItemRepository itemRepository
+    ) : ControllerBase
 {
+#if JF_10_11
     private readonly IChapterRepository _chapterRepository = chapterRepository;
+#endif
     private readonly IServerConfigurationManager _config = config;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly IItemRepository _itemRepository = itemRepository;
@@ -52,7 +57,12 @@ public class DeoVrDeeplinkController(
                 {
                     var libConfig = GetLibraryConfigForItem(video);
                     var response =
+#if JF_10_11
                         DeoVrResponseBuilder.BuildVideoResponse(video, baseUrl, libConfig, _chapterRepository, _logger);
+#else
+                        DeoVrResponseBuilder.BuildVideoResponse(video, baseUrl, libConfig, _itemRepository, _logger);
+#endif
+                        
                     return Ok(response);
                 }
                 catch (Exception ex)
