@@ -142,12 +142,8 @@ public class DeoVrController : ControllerBase
             OrderBy = GetOrderBySortType(config)
         };
     
-        var items = _libraryManager.GetItemList(query);
-        return await Task.FromResult( // Deduplicate by ID - Jellyfin 10.11.0 bug?
-            items.OfType<Video>()
-            .GroupBy(v => v.Id)
-            .Select(g => g.First())
-        ).ConfigureAwait(false);
+        var items = _libraryManager.GetItemList(query).Distinct(); // Distinct needed since Jellyfin 10.11.0
+        return await Task.FromResult(items.OfType<Video>());
     }
 
     private IReadOnlyList<(ItemSortBy OrderBy, SortOrder SortOrder)> GetOrderBySortType(LibraryConfiguration config) =>
