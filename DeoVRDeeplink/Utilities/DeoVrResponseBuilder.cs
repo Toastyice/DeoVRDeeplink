@@ -37,7 +37,7 @@ public static class DeoVrResponseBuilder
                 Title = video.Name,
                 VideoLength = (int)((video.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond),
                 VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
-                ThumbnailUrl = ImageHelper.TryGetImageUrl(video, baseUrl, ImageType.Backdrop)
+                ThumbnailUrl = ImageHelper.GetImageUrl(video, baseUrl)
             }).ToList();
 
         var scene = new DeoVrScene
@@ -70,7 +70,7 @@ public static class DeoVrResponseBuilder
         var fallbackStereo = libConfig?.FallbackStereoMode ?? StereoMode.None;
         var fallbackProjection = libConfig?.FallbackProjection ?? ProjectionType.None;
 
-        var thumbnailUrl = ImageHelper.TryGetImageUrl(video, baseUrl, ImageType.Backdrop);
+        var thumbnailUrl = ImageHelper.GetImageUrl(video, baseUrl);
         var (stereoMode, screenType) = Get3DType(video, fallbackStereo, fallbackProjection);
 
         var encodings = video.GetMediaSources(false)

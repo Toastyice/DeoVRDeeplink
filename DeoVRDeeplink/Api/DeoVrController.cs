@@ -75,7 +75,7 @@ public class DeoVrController : ControllerBase
                     Title = video.Name,
                     VideoLength = GetVideoDuration(video),
                     VideoUrl = $"{baseUrl}/deovr/json/{video.Id}/response.json",
-                    ThumbnailUrl = ImageHelper.TryGetImageUrl(video, baseUrl, ImageType.Backdrop)
+                    ThumbnailUrl = ImageHelper.GetImageUrl(video, baseUrl)
                 }).ToList();
 
                 _logger.LogDebug("Added {Count} videos from library: {LibraryName}",
