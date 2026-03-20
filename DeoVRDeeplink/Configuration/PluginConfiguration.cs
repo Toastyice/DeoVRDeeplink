@@ -37,6 +37,15 @@ public enum SortBy
     ReleaseDate = 3
 }
 
+public enum SortOrder
+{
+    /// <summary>Sort in increasing order.</summary>
+    Ascending = 0,
+    /// <summary>Sort in decreasing order.</summary>
+    Descending= 1,
+}
+
+
 /// <summary>Configuration for individual library settings.</summary>
 public class LibraryConfiguration
 {
@@ -50,7 +59,7 @@ public class LibraryConfiguration
     public SortBy SortBy { get; set; }
     
     /// <summary>Gets or sets the sort order.</summary>
-    public Jellyfin.Database.Implementations.Enums.SortOrder SortOrder { get; set; }
+    public SortOrder SortOrder { get; set; }
     
     /// <summary>Gets or sets a value indicating whether timeline images are enabled.</summary>
     public bool TimelineImages { get; set; }

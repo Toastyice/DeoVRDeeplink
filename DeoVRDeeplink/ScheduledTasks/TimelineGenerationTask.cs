@@ -61,7 +61,11 @@ public class TimelineGenerationTask : IScheduledTask
         [
             new TaskTriggerInfo
             {
+#if JF_10_11
                 Type = TaskTriggerInfoType.IntervalTrigger,
+#else
+                Type = TaskTriggerInfo.TriggerInterval,
+#endif
                 IntervalTicks = TimeSpan.FromHours(24).Ticks
             }
         ];

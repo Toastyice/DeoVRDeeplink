@@ -3,7 +3,6 @@ using DeoVRDeeplink.Configuration;
 using DeoVRDeeplink.Model;
 using DeoVRDeeplink.Utilities;
 using Jellyfin.Data.Enums;
-using Jellyfin.Database.Implementations.Enums;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -12,6 +11,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
+#if JF_10_11
+using JfSortOrder = Jellyfin.Database.Implementations.Enums.SortOrder;
+# else
+using JfSortOrder = Jellyfin.Data.Enums.SortOrder;
+#endif
 namespace DeoVRDeeplink.Api;
 
 [ApiController]
@@ -146,13 +150,13 @@ public class DeoVrController : ControllerBase
         return await Task.FromResult(items.OfType<Video>());
     }
 
-    private IReadOnlyList<(ItemSortBy OrderBy, SortOrder SortOrder)> GetOrderBySortType(LibraryConfiguration config) =>
+    private IReadOnlyList<(ItemSortBy OrderBy, JfSortOrder SortOrder)> GetOrderBySortType(LibraryConfiguration config) =>
         config.SortBy switch
         {
-            SortBy.Name => [(ItemSortBy.Name, config.SortOrder)],
-            SortBy.Random => [(ItemSortBy.Random, config.SortOrder)],
-            SortBy.DateAdded => [(ItemSortBy.DateCreated, config.SortOrder)],
-            SortBy.ReleaseDate => [(ItemSortBy.PremiereDate, config.SortOrder)],
+            SortBy.Name => [(OrderBy: ItemSortBy.Name, SortOrder: (JfSortOrder)config.SortOrder)],
+            SortBy.Random => [(OrderBy: ItemSortBy.Random, SortOrder: (JfSortOrder)config.SortOrder)],
+            SortBy.DateAdded => [(OrderBy: ItemSortBy.DateCreated, SortOrder: (JfSortOrder)config.SortOrder)],
+            SortBy.ReleaseDate => [(OrderBy: ItemSortBy.PremiereDate, SortOrder: (JfSortOrder)config.SortOrder)],
             _ => throw new ArgumentOutOfRangeException()
         };
 

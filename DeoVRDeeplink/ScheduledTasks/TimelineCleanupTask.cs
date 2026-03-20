@@ -44,7 +44,11 @@ public class TimelineCleanupTask : IScheduledTask
         [
             new TaskTriggerInfo
             {
+#if JF_10_11
                 Type = TaskTriggerInfoType.IntervalTrigger,
+#else
+                Type = TaskTriggerInfo.TriggerInterval,
+#endif                
                 IntervalTicks = TimeSpan.FromDays(7).Ticks // Weekly cleanup by default
             }
         ];
