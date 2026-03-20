@@ -120,7 +120,9 @@ public partial class DeoVrDeeplinkPlugin : BasePlugin<PluginConfiguration>, IHas
         yield return new PluginPageInfo
         {
             Name = "DeoVRDeeplink",
-            EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.html",
+            DisplayName = "DeoVR Deeplink",
+            EnableInMainMenu = true,
+            EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.html"
         };
     }
 
