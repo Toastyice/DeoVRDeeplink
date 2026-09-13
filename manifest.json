@@ -140,7 +140,7 @@
               "changelog": "Jellyfin 12.0.0 support",
               "targetAbi": "12.0.0.0",
               "sourceUrl": "https://github.com/Toastyice/DeoVRDeeplink/releases/download/v4.0.0.0/DeoVRDeeplink-v4.0.0.0.zip",
-              "checksum": "b64e2a1658df85a305c414c7ffd32cb3",
+              "checksum": "3e95bc80ad6b66b9eff472cbf8c4c26e",
               "timestamp": "2026-09-10T09:30:00Z"
             }
         ]
