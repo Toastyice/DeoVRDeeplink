@@ -134,6 +134,14 @@
               "sourceUrl": "https://github.com/Toastyice/DeoVRDeeplink/releases/download/v3.0.1.0/DeoVRDeeplink-v3.0.1.0.zip",
               "checksum": "16c55940512fdbcce773db751e9e7bfd",
               "timestamp": "2025-11-11T06:46:00Z"
+            },
+            {
+              "version": "4.0.0.0",
+              "changelog": "Jellyfin 12.0.0 support",
+              "targetAbi": "12.0.0.0",
+              "sourceUrl": "https://github.com/Toastyice/DeoVRDeeplink/releases/download/v4.0.0.0/DeoVRDeeplink-v4.0.0.0.zip",
+              "checksum": "b64e2a1658df85a305c414c7ffd32cb3",
+              "timestamp": "2026-09-10T09:30:00Z"
             }
         ]
     }
